@@ -1,0 +1,48 @@
+# ملفات نظام التشغيل
+.DS_Store
+Thumbs.db
+
+# ملفات البيئة (Environment variables)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# تبعيات Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# مجلدات البناء
+dist/
+build/
+.out/
+.next/
+
+# ملفات IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ملفات الاختبار والغطاء
+coverage/
+.nyc_output/
+
+# ملفات النظام
+*.pid
+*.seed
+*.pid.lock
+
+# ملفات التخزين المؤقت
+.temp/
+tmp/
+
+# ملفات التحميلات
+uploads/
