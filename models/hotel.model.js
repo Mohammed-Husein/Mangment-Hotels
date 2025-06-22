@@ -6,33 +6,33 @@ const hotelSchema = new mongoose.Schema({
     name: {
         ar: {
             type: String,
-            required: [true, 'اسم الفندق باللغة العربية مطلوب'],
+            // required: [true, 'اسم الفندق باللغة العربية مطلوب'],
             trim: true,
             minlength: [2, 'يجب أن يكون اسم الفندق أكثر من حرفين'],
             maxlength: [100, 'يجب أن لا يتجاوز اسم الفندق 100 حرف']
         },
         en: {
             type: String,
-            required: [true, 'اسم الفندق باللغة الإنجليزية مطلوب'],
             trim: true,
             minlength: [2, 'Hotel name must be more than 2 characters'],
             maxlength: [100, 'Hotel name must not exceed 100 characters']
         }
     },
-    
+
     // نوع الفندق
     type: {
         type: String,
-        required: [true, 'نوع الفندق مطلوب'],
+        default: 'فندق',
         enum: {
             values: ['فندق', 'نزل', 'منتجع', 'شقق فندقية', 'بيت ضيافة'],
             message: 'نوع الفندق المحدد غير صحيح'
         }
     },
-    
+
     // تصنيف النجوم
     stars: {
         type: Number,
+        default: 1,
         min: [1, 'تصنيف النجوم يجب أن يكون بين 1 و 5'],
         max: [5, 'تصنيف النجوم يجب أن يكون بين 1 و 5'],
         validate: {
@@ -58,36 +58,37 @@ const hotelSchema = new mongoose.Schema({
     // المنطقة
     region: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Region'
+        ref: 'Region',
+        required: [true, 'المنطقة مطلوبة']
     },
     
     // العنوان التفصيلي (متعدد اللغات)
     address: {
         ar: {
             type: String,
-            required: [true, 'العنوان باللغة العربية مطلوب'],
-            trim: true
+            trim: true,
+            default: ''
         },
         en: {
             type: String,
-            required: [true, 'العنوان باللغة الإنجليزية مطلوب'],
-            trim: true
+            trim: true,
+            default: ''
         }
     },
-    
+
     // وصف الفندق (متعدد اللغات)
     description: {
         ar: {
             type: String,
-            required: [true, 'وصف الفندق باللغة العربية مطلوب'],
             trim: true,
-            maxlength: [2000, 'وصف الفندق يجب أن لا يتجاوز 2000 حرف']
+            maxlength: [2000, 'وصف الفندق يجب أن لا يتجاوز 2000 حرف'],
+            default: ''
         },
         en: {
             type: String,
-            required: [true, 'وصف الفندق باللغة الإنجليزية مطلوب'],
             trim: true,
-            maxlength: [2000, 'Hotel description must not exceed 2000 characters']
+            maxlength: [2000, 'Hotel description must not exceed 2000 characters'],
+            default: ''
         }
     },
     
@@ -203,11 +204,23 @@ const hotelSchema = new mongoose.Schema({
         }
     },
     
-    // معرف المالك/المدير
+    // معرف المالك/المدير (اختياري)
     owner: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: [true, 'مالك الفندق مطلوب']
+        ref: 'User'
+    },
+
+    // معرف الموظف الذي أنشأ الفندق
+    createdByEmployee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee',
+        required: [true, 'معرف الموظف المنشئ مطلوب']
+    },
+
+    // معرف الموظف الذي قام بآخر تحديث
+    updatedByEmployee: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Employee'
     }
 }, {
     timestamps: true,
@@ -245,30 +258,34 @@ hotelSchema.virtual('activeBookingsCount', {
 
 // Middleware للتحقق من تطابق البلد والمحافظة والمنطقة قبل الحفظ
 hotelSchema.pre('save', async function(next) {
+    // إضافة الاسم الإنجليزي إذا لم يتم تحديده
+    if (!this.name.en && this.name.ar) {
+        this.name.en = this.name.ar;
+    }
+
     if (this.isModified('country') || this.isModified('governorate') || this.isModified('region')) {
         const Governorate = mongoose.model('Governorate');
         const Region = mongoose.model('Region');
 
         // التحقق من المحافظة
-        const governorate = await Governorate.findById(this.governorate);
+        const governorate = await Governorate.findById(this.governorate).populate('country');
         if (!governorate) {
             return next(new Error('المحافظة المحددة غير موجودة'));
         }
 
-        if (governorate.country.toString() !== this.country.toString()) {
+        if (governorate.country._id.toString() !== this.country.toString()) {
             return next(new Error('المحافظة المحددة لا تنتمي للبلد المحدد'));
         }
 
-        // التحقق من المنطقة إذا تم تحديدها
+        // التحقق من المنطقة
         if (this.region) {
             const region = await Region.findById(this.region);
             if (!region) {
                 return next(new Error('المنطقة المحددة غير موجودة'));
             }
 
-            if (region.country.toString() !== this.country.toString() ||
-                region.governorate.toString() !== this.governorate.toString()) {
-                return next(new Error('المنطقة المحددة لا تنتمي للبلد أو المحافظة المحددة'));
+            if (region.governorate.toString() !== this.governorate.toString()) {
+                return next(new Error('المنطقة المحددة لا تنتمي للمحافظة المحددة'));
             }
         }
     }
