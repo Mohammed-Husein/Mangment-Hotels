@@ -8,21 +8,20 @@ const bookingSchema = new mongoose.Schema({
         unique: true,
         required: [true, 'رقم الحجز مطلوب']
     },
-    
+
     // معرف العميل
     customer: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: [true, 'العميل مطلوب']
     },
-    
-    // معرف الفندق
+
+    // معرف الفندق (اختياري - يمكن الحصول عليه من الغرفة)
     hotel: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Hotel',
-        required: [true, 'الفندق مطلوب']
+        ref: 'Hotel'
     },
-    
+
     // معرف الغرفة
     room: {
         type: mongoose.Schema.Types.ObjectId,
@@ -206,6 +205,13 @@ const bookingSchema = new mongoose.Schema({
             }
         },
         
+        // الحسم (اختياري)
+        discount: {
+            type: Number,
+            default: 0,
+            min: [0, 'الحسم لا يمكن أن يكون سالب']
+        },
+
         // المبلغ الإجمالي النهائي
         totalAmount: {
             type: Number,
@@ -223,36 +229,34 @@ const bookingSchema = new mongoose.Schema({
     
     // معلومات الدفع
     payment: {
-        method: {
-            type: String,
-            required: [true, 'طريقة الدفع مطلوبة'],
-            enum: {
-                values: ['بطاقة بنكية', 'PayPal', 'تحويل بنكي', 'نقداً عند الوصول', 'محفظة رقمية'],
-                message: 'طريقة الدفع المحددة غير صحيحة'
-            }
+        // طريقة الدفع (معرف من جدول طرق الدفع)
+        paymentMethod: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'PaymentMethod',
+            required: [true, 'طريقة الدفع مطلوبة']
         },
-        
+
         status: {
             type: String,
             enum: ['معلق', 'مدفوع', 'مدفوع جزئياً', 'مرفوض', 'مسترد'],
             default: 'معلق'
         },
-        
+
         paidAmount: {
             type: Number,
             default: 0,
             min: [0, 'المبلغ المدفوع لا يمكن أن يكون سالب']
         },
-        
+
         remainingAmount: {
             type: Number,
             default: 0,
             min: [0, 'المبلغ المتبقي لا يمكن أن يكون سالب']
         },
-        
+
         transactionId: String,
         paymentDate: Date,
-        
+
         // تفاصيل إضافية للدفع
         details: {
             cardLast4: String, // آخر 4 أرقام من البطاقة
@@ -352,7 +356,7 @@ const bookingSchema = new mongoose.Schema({
 });
 
 // فهرسة للبحث السريع
-bookingSchema.index({ bookingNumber: 1 }, { unique: true });
+// bookingSchema.index({ bookingNumber: 1 }, { unique: true });
 bookingSchema.index({ customer: 1 });
 bookingSchema.index({ hotel: 1 });
 bookingSchema.index({ room: 1 });
