@@ -6,6 +6,7 @@ const {
     bookRoom,
     cancelBooking,
     getAllBookingsByUserId,
+    getBookingById,
     updateBooking,
     deleteBooking
 } = require('../../controllers/mobileBooking.Controller');
@@ -40,6 +41,13 @@ router.post('/', validateAddBooking, bookRoom);
  * @access  Customer
  */
 router.get('/my-bookings', validateGetBookings, getAllBookingsByUserId);
+
+/**
+ * @route   GET /api/mobile/bookings/:id
+ * @desc    جلب حجز واحد بالمعرف
+ * @access  Customer
+ */
+// router.get('/:id', validateBookingId, getBookingById);
 
 /**
  * @route   PUT /api/mobile/bookings/:id/cancel

@@ -69,4 +69,6 @@ app.listen(PORT, () => {
     console.log(`🚀 الخادم يعمل على المنفذ ${PORT}`);
     console.log(`🌐 الرابط: http://localhost:${PORT}`);
     console.log(`📚 API Documentation: http://localhost:${PORT}/api`);
+    console.log(mongoose.connection.readyState); 
+// 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
 });

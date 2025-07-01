@@ -222,7 +222,7 @@ const validateGetBookings = [
     
     query('status')
         .optional()
-        .isIn(['معلق', 'مؤكد', 'تم تسجيل الدخول', 'تم تسجيل الخروج', 'ملغي', 'لم يحضر'])
+        .isIn(['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show'])
         .withMessage('حالة الحجز غير صحيحة'),
     
     query('search')
@@ -239,7 +239,12 @@ const validateGetBookings = [
         .optional()
         .isLength({ min: 2, max: 100 })
         .withMessage('اسم العميل يجب أن يكون بين 2 و 100 حرف'),
-    
+
+    query('customerId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف العميل غير صحيح'),
+
     handleValidationErrors
 ];
 

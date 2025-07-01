@@ -4,6 +4,89 @@ const httpStatusText = require('../utils/httpStatusText');
 const { paginate } = require('../utils/pagination');
 
 /**
+ * @desc    التحقق من توفر الغرفة في فترة معينة
+ */
+const checkRoomAvailability = async (roomId, checkInDate, checkOutDate, excludeBookingId = null) => {
+    const checkIn = new Date(checkInDate);
+    const checkOut = new Date(checkOutDate);
+
+    // البحث عن الحجوزات المتضاربة
+    const conflictingBookings = await Booking.find({
+        room: roomId,
+        status: { $in: ['pending', 'confirmed', 'checked_in'] },
+        _id: { $ne: excludeBookingId },
+        $or: [
+            // الحجز الجديد يبدأ أثناء حجز موجود
+            {
+                checkInDate: { $lte: checkIn },
+                checkOutDate: { $gt: checkIn }
+            },
+            // الحجز الجديد ينتهي أثناء حجز موجود
+            {
+                checkInDate: { $lt: checkOut },
+                checkOutDate: { $gte: checkOut }
+            },
+            // الحجز الجديد يحتوي على حجز موجود
+            {
+                checkInDate: { $gte: checkIn },
+                checkOutDate: { $lte: checkOut }
+            },
+            // حجز موجود يحتوي على الحجز الجديد
+            {
+                checkInDate: { $lte: checkIn },
+                checkOutDate: { $gte: checkOut }
+            }
+        ]
+    });
+
+    return {
+        isAvailable: conflictingBookings.length === 0,
+        conflictingBookings
+    };
+};
+
+/**
+ * @desc    إيجاد أقرب تاريخ متاح للحجز
+ */
+const findNextAvailableDate = async (roomId, requestedCheckIn, requestedCheckOut) => {
+    const checkIn = new Date(requestedCheckIn);
+    const checkOut = new Date(requestedCheckOut);
+    const numberOfNights = Math.ceil((checkOut.getTime() - checkIn.getTime()) / (1000 * 3600 * 24));
+
+    // جلب جميع الحجوزات المستقبلية للغرفة
+    const futureBookings = await Booking.find({
+        room: roomId,
+        status: { $in: ['pending', 'confirmed', 'checked_in'] },
+        checkOutDate: { $gte: new Date() }
+    }).sort({ checkInDate: 1 });
+
+    if (futureBookings.length === 0) {
+        return checkIn; // الغرفة متاحة من التاريخ المطلوب
+    }
+
+    // البحث عن أول فترة متاحة
+    let currentDate = new Date(Math.max(checkIn.getTime(), new Date().getTime()));
+
+    for (let booking of futureBookings) {
+        const bookingStart = new Date(booking.checkInDate);
+        const bookingEnd = new Date(booking.checkOutDate);
+
+        // التحقق من وجود فجوة كافية قبل هذا الحجز
+        const daysBetween = Math.ceil((bookingStart.getTime() - currentDate.getTime()) / (1000 * 3600 * 24));
+
+        if (daysBetween >= numberOfNights) {
+            return currentDate;
+        }
+
+        // الانتقال إلى ما بعد هذا الحجز
+        currentDate = new Date(bookingEnd.getTime());
+    }
+
+    // إذا لم نجد فترة متاحة، نعيد التاريخ بعد آخر حجز
+    return currentDate;
+};
+
+/**
  * @desc    حجز غرفة (للموبايل)
  * @route   POST /api/mobile/bookings
  * @access  Customer
@@ -34,9 +117,23 @@ const bookRoom = catchAsync(async (req, res) => {
         throw new AppError('الغرفة المحددة غير موجودة', 404);
     }
 
-    // التحقق من توفر الغرفة
-    if (room.status !== 'متاحة') {
-        throw new AppError('الغرفة غير متاحة للحجز', 400);
+    // التحقق من توفر الغرفة في الفترة المطلوبة
+    const availability = await checkRoomAvailability(roomId, checkInDate, checkOutDate);
+    if (!availability.isAvailable) {
+        // إيجاد أقرب تاريخ متاح
+        const nextAvailableDate = await findNextAvailableDate(roomId, checkInDate, checkOutDate);
+        const nextAvailableDateStr = nextAvailableDate.toISOString().split('T')[0];
+
+        const conflictingDates = availability.conflictingBookings.map(booking => ({
+            from: booking.checkInDate.toISOString().split('T')[0],
+            to: booking.checkOutDate.toISOString().split('T')[0],
+            bookingNumber: booking.bookingNumber
+        }));
+
+        throw new AppError(
+            `الغرفة محجوزة في الفترات التالية: ${conflictingDates.map(d => `من ${d.from} إلى ${d.to}`).join(', ')}. يمكنك حجز الغرفة من بعد تاريخ ${nextAvailableDateStr}`,
+            400
+        );
     }
 
     // التحقق من وجود طريقة الدفع
@@ -88,11 +185,11 @@ const bookRoom = catchAsync(async (req, res) => {
         },
         payment: {
             paymentMethod: paymentMethodId,
-            status: 'معلق',
+            status: 'pending',
             paidAmount: 0,
             remainingAmount: finalTotalAmount
         },
-        status: 'معلق',
+        status: 'pending',
         notes: {
             customer: notes || ''
         }
@@ -103,8 +200,8 @@ const bookRoom = catchAsync(async (req, res) => {
     await newBooking.save();
 
     // تحديث حالة الغرفة إلى محجوزة
-    await Room.findByIdAndUpdate(roomId, { 
-        status: 'محجوزة',
+    await Room.findByIdAndUpdate(roomId, {
+        status: 'Reserved',
         futureBooking: {
             isBooked: true,
             bookedFrom: checkIn,
@@ -261,6 +358,31 @@ const getAllBookingsByUserId = catchAsync(async (req, res) => {
 });
 
 /**
+ * @desc    جلب حجز واحد بالمعرف
+ * @route   GET /api/mobile/bookings/:id
+ * @access  Customer
+ */
+const getBookingById = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const customerId = req.decoded.id;
+
+    const booking = await Booking.findOne({ _id: id, customer: customerId })
+        .populate('room', 'numberRoom name price type images bedsCount')
+        .populate('hotel', 'name')
+        .populate('payment.paymentMethod', 'name code');
+
+    if (!booking) {
+        throw new AppError('الحجز غير موجود أو لا تملك صلاحية للوصول إليه', 404);
+    }
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم جلب الحجز بنجاح',
+        data: { booking }
+    });
+});
+
+/**
  * @desc    تعديل حجز
  * @route   PUT /api/mobile/bookings/:id
  * @access  Customer
@@ -282,11 +404,11 @@ const updateBooking = catchAsync(async (req, res) => {
     }
 
     // التحقق من إمكانية التحديث
-    if (booking.status === 'ملغي') {
+    if (booking.status === 'cancelled') {
         throw new AppError('لا يمكن تحديث حجز ملغي', 400);
     }
 
-    if (booking.status === 'تم تسجيل الخروج') {
+    if (booking.status === 'checked_out') {
         throw new AppError('لا يمكن تحديث حجز مكتمل', 400);
     }
 
@@ -305,6 +427,30 @@ const updateBooking = catchAsync(async (req, res) => {
             throw new AppError('طريقة الدفع المحددة غير موجودة', 404);
         }
         updateData['payment.paymentMethod'] = paymentMethodId;
+    }
+
+    // التحقق من توفر الغرفة في حالة تغيير التواريخ
+    if (checkInDate || checkOutDate) {
+        const newCheckIn = checkInDate || booking.checkInDate;
+        const newCheckOut = checkOutDate || booking.checkOutDate;
+
+        const availability = await checkRoomAvailability(booking.room, newCheckIn, newCheckOut, booking._id);
+        if (!availability.isAvailable) {
+            // إيجاد أقرب تاريخ متاح
+            const nextAvailableDate = await findNextAvailableDate(booking.room, newCheckIn, newCheckOut);
+            const nextAvailableDateStr = nextAvailableDate.toISOString().split('T')[0];
+
+            const conflictingDates = availability.conflictingBookings.map(booking => ({
+                from: booking.checkInDate.toISOString().split('T')[0],
+                to: booking.checkOutDate.toISOString().split('T')[0],
+                bookingNumber: booking.bookingNumber
+            }));
+
+            throw new AppError(
+                `الغرفة محجوزة في الفترات التالية: ${conflictingDates.map(d => `من ${d.from} إلى ${d.to}`).join(', ')}. يمكنك تعديل حجزك ليبدأ من بعد تاريخ ${nextAvailableDateStr}`,
+                400
+            );
+        }
     }
 
     // إعادة حساب السعر إذا تغيرت التواريخ
@@ -396,7 +542,7 @@ const deleteBooking = catchAsync(async (req, res) => {
 
     // تحديث حالة الغرفة إلى متاحة
     await Room.findByIdAndUpdate(booking.room, {
-        status: 'متاحة',
+        status: 'Available',
         'futureBooking.isBooked': false,
         'futureBooking.bookedFrom': null,
         'futureBooking.bookedTo': null,
@@ -418,6 +564,7 @@ module.exports = {
     bookRoom,
     cancelBooking,
     getAllBookingsByUserId,
+    getBookingById,
     updateBooking,
     deleteBooking
 };

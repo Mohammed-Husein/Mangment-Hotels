@@ -8,7 +8,7 @@ const Hotel = require('./hotel.model');
 const Room = require('./room.model');
 const Service = require('./service.model');
 const Booking = require('./booking.model');
-
+const PaymentMethod = require('./paymentMethod.model');
 module.exports = {
     User,
     Country,
@@ -17,7 +17,8 @@ module.exports = {
     Hotel,
     Room,
     Service,
-    Booking
+    Booking,
+    PaymentMethod
 };
 
 // تصدير النماذج بشكل منفصل أيضاً للمرونة
@@ -29,7 +30,8 @@ module.exports.models = {
     Hotel,
     Room,
     Service,
-    Booking
+    Booking,
+    PaymentMethod
 };
 
 // دالة مساعدة للحصول على جميع النماذج
@@ -42,7 +44,8 @@ module.exports.getAllModels = () => {
         Hotel,
         Room,
         Service,
-        Booking
+        Booking,
+        PaymentMethod
     };
 };
 

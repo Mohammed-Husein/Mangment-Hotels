@@ -1,4 +1,5 @@
 const httpStatusText = require('./httpStatusText');
+const Booking = require('../models/booking.model');
 
 /**
  * دالة الباجينيشن والترتيب والبحث
@@ -282,11 +283,34 @@ const addPaginationLinks = (req, pagination) => {
     return links;
 };
 
+// دالة توليد رقم حجز فريد
+async function generateBookingNumber() {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+
+    const lastBooking = await Booking.findOne(
+        { bookingNumber: new RegExp(`^RES-${year}${month}${day}`) },
+        { bookingNumber: 1 },
+        { sort: { bookingNumber: -1 } }
+    ).maxTimeMS(10000);
+
+    let sequence = 1;
+    if (lastBooking?.bookingNumber) {
+        const lastSeq = parseInt(lastBooking.bookingNumber.slice(-4)) || 0;
+        sequence = lastSeq < 9999 ? lastSeq + 1 : 1;
+    }
+
+    return `RES-${year}${month}${day}-${sequence.toString().padStart(4, '0')}`;
+}
+
 module.exports = {
     paginate,
     extractPaginationParams,
     cleanFilters,
     advancedSearch,
     createPageUrl,
-    addPaginationLinks
+    addPaginationLinks,
+    generateBookingNumber
 };
