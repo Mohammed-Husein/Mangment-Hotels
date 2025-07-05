@@ -16,9 +16,11 @@ const verifyToken = require('../../middelWare/verifyToken');
 
 /**
  * @route   GET /api/mobile/hotels
- * @desc    جلب جميع الفنادق للموبايل مع الباجينيشن والفلترة
+ * @desc    جلب جميع الفنادق للموبايل مع الباجينيشن والفلترة والبحث الجغرافي
  * @access  Public
- * @params  page, limit, search, cityId, governorateId, regionId
+ * @params  page, limit, search, cityId, governorateId, regionId, longitude, latitude
+ * @note    إذا تم تمرير longitude و latitude، سيتم البحث عن الفنادق القريبة أولاً (ضمن 50 كم)
+ *          وإذا لم توجد فنادق قريبة، سيتم جلب جميع الفنادق المتاحة
  */
 router.get('/', verifyToken,  validateGetHotelsForMobile, getAllHotelsForMobile);
 

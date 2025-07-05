@@ -10,40 +10,53 @@ const { catchAsync, AppError } = require('../utils/errorHandler');
  */
 const getAllCountries = catchAsync(async (req, res) => {
     const options = extractPaginationParams(req);
-    
+
     // إضافة حقول البحث المخصصة
     options.searchFields = ['name.ar', 'name.en', 'code'];
-    
+
     // بناء استعلام الفلترة
     let query = {};
-    
+
     // فلترة حسب الحالة
     if (req.query.isActive !== undefined) {
         query.isActive = req.query.isActive === 'true';
     }
-    
+
+    // البحث في الاسم
+    if (req.query.search) {
+        const searchRegex = new RegExp(req.query.search, 'i');
+        query.$or = [
+            { 'name.ar': searchRegex },
+            { 'name.en': searchRegex }
+        ];
+    }
+
     // إضافة populate لعدد المحافظات
     options.populate = {
         path: 'governoratesCount',
         options: { count: true }
     };
-    
+
     const result = await paginate(Country, query, options);
-    
+
     // تنسيق البيانات حسب المطلوب
     const formattedCountries = await Promise.all(result.data.map(async (country) => {
         // حساب عدد المدن (المحافظات) لكل بلد
         const Governorate = require('../models/governorate.model');
         const numberOfCities = await Governorate.countDocuments({ country: country._id });
-        
+
         return {
             id: country._id,
-            name: country.name?.ar || country.name?.en || 'غير محدد',
+            name: {
+                ar: country.name?.ar,
+                en: country.name?.en
+            },
             code: country.code,
+            isActive: country.isActive,
             numberOfCities: numberOfCities
         };
     }));
-    
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم جلب البلدان بنجاح',
@@ -133,13 +146,18 @@ const getCountryById = catchAsync(async (req, res) => {
  */
 const addCountry = catchAsync(async (req, res) => {
     const { name, code } = req.body;
-    
+
+    // التحقق من صحة الكود (يقبل أحرف كبيرة أو صغيرة، الحد الأدنى حرفين)
+    if (!code || code.length < 2) {
+        throw new AppError('كود البلد يجب أن يكون حرفين على الأقل', 400);
+    }
+
     // التحقق من عدم وجود بلد بنفس الكود
     const existingCountry = await Country.findOne({ code: code.toUpperCase() });
     if (existingCountry) {
         throw new AppError('يوجد بلد مسجل بهذا الكود مسبقاً', 400);
     }
-    
+
     // التحقق من عدم وجود بلد بنفس الاسم العربي
     if (name.ar) {
         const existingNameAr = await Country.findOne({ 'name.ar': name.ar });
@@ -147,7 +165,7 @@ const addCountry = catchAsync(async (req, res) => {
             throw new AppError('يوجد بلد مسجل بهذا الاسم العربي مسبقاً', 400);
         }
     }
-    
+
     // التحقق من عدم وجود بلد بنفس الاسم الإنجليزي
     if (name.en) {
         const existingNameEn = await Country.findOne({ 'name.en': name.en });
@@ -155,19 +173,19 @@ const addCountry = catchAsync(async (req, res) => {
             throw new AppError('يوجد بلد مسجل بهذا الاسم الإنجليزي مسبقاً', 400);
         }
     }
-    
-    // إنشاء البلد الجديد
+
+    // إنشاء البلد الجديد (فقط الحقول المطلوبة: name{ar, en} و code)
     const newCountry = new Country({
         name: {
             ar: name.ar,
             en: name.en
         },
         code: code.toUpperCase(),
-        isActive: true
+        isActive: true // القيمة الافتراضية
     });
-    
+
     await newCountry.save();
-    
+
     res.status(201).json({
         status: httpStatusText.SUCCESS,
         message: 'تم إضافة البلد بنجاح',
@@ -182,16 +200,21 @@ const addCountry = catchAsync(async (req, res) => {
  */
 const updateCountry = catchAsync(async (req, res) => {
     const { id } = req.params;
-    const { name, code, phoneCode, currency, isActive } = req.body;
-    
+    const { name, code, isActive } = req.body; // فقط الحقول المطلوبة للتعديل
+
     const country = await Country.findById(id);
     if (!country) {
         throw new AppError('البلد غير موجود', 404);
     }
-    
+
+    // التحقق من صحة الكود إذا تم تمريره (يقبل أحرف كبيرة أو صغيرة، الحد الأدنى حرفين)
+    if (code && code.length < 2) {
+        throw new AppError('كود البلد يجب أن يكون حرفين على الأقل', 400);
+    }
+
     // التحقق من عدم وجود بلد آخر بنفس الكود
     if (code && code.toUpperCase() !== country.code) {
-        const existingCountry = await Country.findOne({ 
+        const existingCountry = await Country.findOne({
             code: code.toUpperCase(),
             _id: { $ne: id }
         });
@@ -199,25 +222,45 @@ const updateCountry = catchAsync(async (req, res) => {
             throw new AppError('يوجد بلد آخر مسجل بهذا الكود', 400);
         }
     }
-    
-    // تحديث البيانات
+
+    // التحقق من عدم تكرار الاسم العربي
+    if (name && name.ar && name.ar !== country.name?.ar) {
+        const existingNameAr = await Country.findOne({
+            'name.ar': name.ar,
+            _id: { $ne: id }
+        });
+        if (existingNameAr) {
+            throw new AppError('يوجد بلد آخر مسجل بهذا الاسم العربي', 400);
+        }
+    }
+
+    // التحقق من عدم تكرار الاسم الإنجليزي
+    if (name && name.en && name.en !== country.name?.en) {
+        const existingNameEn = await Country.findOne({
+            'name.en': name.en,
+            _id: { $ne: id }
+        });
+        if (existingNameEn) {
+            throw new AppError('يوجد بلد آخر مسجل بهذا الاسم الإنجليزي', 400);
+        }
+    }
+
+    // تحديث البيانات (فقط الحقول المطلوبة: name{ar, en}, code, isActive)
     const updateData = {};
     if (name) {
         updateData.name = {};
-        if (name.ar) updateData.name.ar = name.ar;
-        if (name.en) updateData.name.en = name.en;
+        if (name.ar !== undefined) updateData.name.ar = name.ar;
+        if (name.en !== undefined) updateData.name.en = name.en;
     }
     if (code) updateData.code = code.toUpperCase();
-    if (phoneCode) updateData.phoneCode = phoneCode;
-    if (currency) updateData.currency = currency;
     if (isActive !== undefined) updateData.isActive = isActive;
-    
+
     const updatedCountry = await Country.findByIdAndUpdate(
         id,
         updateData,
         { new: true, runValidators: true }
     );
-    
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم تحديث بيانات البلد بنجاح',

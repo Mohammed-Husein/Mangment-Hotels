@@ -241,6 +241,29 @@ const validateGetHotelsForMobile = [
         .isMongoId()
         .withMessage('معرف المنطقة غير صحيح'),
 
+    query('longitude')
+        .optional()
+        .isFloat({ min: -180, max: 180 })
+        .withMessage('خط الطول يجب أن يكون رقم بين -180 و 180'),
+
+    query('latitude')
+        .optional()
+        .isFloat({ min: -90, max: 90 })
+        .withMessage('خط العرض يجب أن يكون رقم بين -90 و 90'),
+
+    // التحقق من أن الإحداثيات مترابطة (إما كلاهما أو لا شيء)
+    query()
+        .custom((value, { req }) => {
+            const { longitude, latitude } = req.query;
+
+            // إذا تم تمرير أحدهما فقط، فهذا خطأ
+            if ((longitude && !latitude) || (!longitude && latitude)) {
+                throw new Error('يجب تمرير خط الطول وخط العرض معاً أو عدم تمريرهما');
+            }
+
+            return true;
+        }),
+
     handleValidationErrors
 ];
 

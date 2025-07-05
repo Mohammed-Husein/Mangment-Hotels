@@ -285,6 +285,12 @@ const register = catchAsync(async (req, res) => {
         'user-type': 'User'
     });
 
+    // توليد رمز التحديث
+    const refreshToken = generateRefreshToken();
+
+    // حفظ رمز التحديث
+    await saveRefreshToken(newUser._id, refreshToken);
+
     res.status(201).json({
         status: httpStatusText.SUCCESS,
         message: 'تم التسجيل بنجاح',
@@ -294,7 +300,8 @@ const register = catchAsync(async (req, res) => {
                 id: newUser._id,
                 name: `${newUser.firstName} ${newUser.lastName}`
             },
-            accessToken
+            accessToken,
+            refreshToken
         }
     });
 });
@@ -332,12 +339,21 @@ const login = catchAsync(async (req, res) => {
     // تحديث آخر ظهور
     await User.findByIdAndUpdate(user._id, { lastSeen: new Date() });
 
+    // تنظيف رموز التحديث المنتهية الصلاحية
+    await cleanExpiredRefreshTokens(user._id);
+
     // توليد رمز الوصول
     const accessToken = await genirate_JWT({
         email: user.email,
         id: user._id,
         'user-type': 'User'
     });
+
+    // توليد رمز التحديث
+    const refreshToken = generateRefreshToken();
+
+    // حفظ رمز التحديث
+    await saveRefreshToken(user._id, refreshToken);
 
     res.status(200).json({
         status: httpStatusText.SUCCESS,
@@ -348,12 +364,79 @@ const login = catchAsync(async (req, res) => {
                 id: user._id,
                 name: `${user.firstName} ${user.lastName}`
             },
-            accessToken
+            accessToken,
+            refreshToken
         }
     });
 });
 
-// تم إزالة refreshToken للمستخدمين العاديين لأنهم لا يحتاجون نظام مصادقة معقد
+/**
+ * تحديث رمز الوصول باستخدام رمز التحديث
+ */
+const refreshToken = catchAsync(async (req, res) => {
+    const { userId, refreshToken: userRefreshToken } = req.body;
+
+    // التحقق من وجود البيانات المطلوبة
+    if (!userId || !userRefreshToken) {
+        throw new AppError('معرف المستخدم ورمز التحديث مطلوبان', 400);
+    }
+
+    // البحث عن المستخدم
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new AppError('المستخدم غير موجود', 404);
+    }
+
+    // التحقق من حالة الحساب
+    if (user.status !== 'Active') {
+        throw new AppError('الحساب غير مفعل', 401);
+    }
+
+    // تنظيف رموز التحديث المنتهية الصلاحية
+    await cleanExpiredRefreshTokens(userId);
+
+    // البحث عن رمز التحديث في قاعدة البيانات
+    const tokenRecord = user.refreshTokens.find(
+        tokenObj => tokenObj.token === userRefreshToken && tokenObj.expiresAt > new Date()
+    );
+
+    if (!tokenRecord) {
+        throw new AppError('رمز التحديث غير صحيح أو منتهي الصلاحية', 401);
+    }
+
+    // توليد رمز وصول جديد
+    const newAccessToken = await genirate_JWT({
+        email: user.email,
+        id: user._id,
+        'user-type': 'User'
+    });
+
+    // توليد رمز تحديث جديد
+    const newRefreshToken = generateRefreshToken();
+
+    // إزالة رمز التحديث القديم وإضافة الجديد
+    await User.findByIdAndUpdate(userId, {
+        $pull: { refreshTokens: { token: userRefreshToken } }
+    });
+
+    await saveRefreshToken(userId, newRefreshToken);
+
+    // تحديث آخر ظهور
+    await User.findByIdAndUpdate(userId, { lastSeen: new Date() });
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم تحديث رمز الوصول بنجاح',
+        data: {
+            accessToken: newAccessToken,
+            refreshToken: newRefreshToken,
+            userInfo: {
+                id: user._id,
+                name: `${user.firstName} ${user.lastName}`
+            }
+        }
+    });
+});
 
 /**
  * تحديث بيانات المستخدم
@@ -806,6 +889,7 @@ module.exports = {
     addUser,
     register,
     login,
+    refreshToken,
     updateUser,
     updateUserData,
     updatePassword,

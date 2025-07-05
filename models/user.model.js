@@ -89,10 +89,11 @@ const userSchema = new mongoose.Schema({
         ref: 'Governorate'
     },
 
-    // العنوان التفصيلي
+    // العنوان التفصيلي (اختياري)
     detailedAddress: {
         type: String,
-        required: [true, 'العنوان التفصيلي مطلوب'],
+        trim: true,
+        maxlength: [200, 'العنوان التفصيلي يجب أن لا يتجاوز 200 حرف']
     },
 
     // إحداثيات الموقع (اختيارية)
@@ -115,7 +116,7 @@ const userSchema = new mongoose.Schema({
         default: 'uploads/default-avatar.png'
     },
 
-    // اللغة المفضلة
+    // اللغة المفضلة (اختيارية)
     preferredLanguage: {
         type: String,
         enum: ['Arabic', 'English'],
@@ -145,6 +146,16 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+
+    // رموز التحديث
+    refreshTokens: [{
+        token: String,
+        createdAt: {
+            type: Date,
+            default: Date.now
+        },
+        expiresAt: Date
+    }],
 
     // معلومات إضافية للعميل
     notes: {

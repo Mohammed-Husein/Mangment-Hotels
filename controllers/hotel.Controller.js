@@ -3,6 +3,19 @@ const httpStatusText = require("../utils/httpStatusText.js");
 const { paginate, extractPaginationParams } = require('../utils/pagination');
 const { catchAsync, AppError } = require('../utils/errorHandler');
 
+// دالة حساب المسافة بين نقطتين جغرافيتين (معادلة Haversine)
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    const R = 6371; // نصف قطر الأرض بالكيلومتر
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+        Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c; // المسافة بالكيلومتر
+};
+
 /**
  * @desc    جلب جميع الفنادق مع الباجينيشن والفلترة (Admin)
  * @route   GET /api/admin/hotels
@@ -406,22 +419,55 @@ const deleteHotel = catchAsync(async (req, res) => {
 });
 
 /**
- * @desc    جلب جميع الفنادق للموبايل مع الباجينيشن والفلترة
+ * @desc    جلب جميع الفنادق للموبايل مع الباجينيشن والفلترة والبحث الجغرافي
  * @route   GET /api/mobile/hotels
  * @access  Public
+ * @query   longitude, latitude, search, governorateId/cityId, page, limit
  */
 const getAllHotelsForMobile = catchAsync(async (req, res) => {
     const options = extractPaginationParams(req);
+    const { longitude, latitude, search } = req.query;
 
     // إضافة حقول البحث المخصصة
     options.searchFields = ['name.ar', 'name.en'];
 
     // بناء استعلام الفلترة - فقط الفنادق النشطة
     let query = { isActive: true };
+    let useLocationFilter = false;
+
+    // البحث النصي في اسم الفندق
+    if (search) {
+        const searchRegex = new RegExp(search, 'i');
+        query.$or = [
+            { 'name.ar': searchRegex },
+            { 'name.en': searchRegex }
+        ];
+    }
 
     // فلترة حسب المحافظة
     if (req.query.governorateId || req.query.cityId) {
         query.governorate = req.query.governorateId || req.query.cityId;
+    }
+
+    // البحث الجغرافي إذا تم تمرير الإحداثيات
+    if (longitude && latitude) {
+        const lng = parseFloat(longitude);
+        const lat = parseFloat(latitude);
+
+        // التحقق من صحة الإحداثيات
+        if (!isNaN(lng) && !isNaN(lat) && lng >= -180 && lng <= 180 && lat >= -90 && lat <= 90) {
+            // البحث ضمن دائرة نصف قطرها 50 كيلومتر (50000 متر)
+            query.location = {
+                $near: {
+                    $geometry: {
+                        type: 'Point',
+                        coordinates: [lng, lat]
+                    },
+                    $maxDistance: 50000 // 50 كيلومتر
+                }
+            };
+            useLocationFilter = true;
+        }
     }
 
     // إضافة populate للبيانات المرتبطة
@@ -430,16 +476,68 @@ const getAllHotelsForMobile = catchAsync(async (req, res) => {
         { path: 'governorate', select: 'name' }
     ];
 
-    const result = await paginate(Hotel, query, options);
+    let result = await paginate(Hotel, query, options);
+
+    // إذا تم استخدام فلتر الموقع ولم يتم العثور على فنادق، جلب جميع الفنادق
+    if (useLocationFilter && result.data.length === 0) {
+        // إزالة فلتر الموقع والبحث مرة أخرى
+        const fallbackQuery = { isActive: true };
+
+        // الاحتفاظ بالفلاتر الأخرى
+        if (search) {
+            const searchRegex = new RegExp(search, 'i');
+            fallbackQuery.$or = [
+                { 'name.ar': searchRegex },
+                { 'name.en': searchRegex }
+            ];
+        }
+
+        if (req.query.governorateId || req.query.cityId) {
+            fallbackQuery.governorate = req.query.governorateId || req.query.cityId;
+        }
+
+        result = await paginate(Hotel, fallbackQuery, options);
+    }
 
     // جلب عدد الغرف لكل فندق
     const hotelsWithRoomCount = await Promise.all(
         result.data.map(async (hotel) => {
             const Room = require('../models/room.model');
             const roomsCount = await Room.countDocuments({ hotel: hotel._id });
-            return { ...hotel.toObject(), roomsCount };
+
+            // حساب المسافة إذا تم تمرير إحداثيات المستخدم
+            let distance = null;
+            if (longitude && latitude && hotel.location && hotel.location.coordinates) {
+                const hotelLng = hotel.location.coordinates[0];
+                const hotelLat = hotel.location.coordinates[1];
+
+                // حساب المسافة باستخدام معادلة Haversine (بالكيلومتر)
+                distance = calculateDistance(
+                    parseFloat(latitude),
+                    parseFloat(longitude),
+                    hotelLat,
+                    hotelLng
+                );
+            }
+
+            return {
+                ...hotel.toObject(),
+                roomsCount,
+                distance: distance ? Math.round(distance * 100) / 100 : null // تقريب لرقمين عشريين
+            };
         })
     );
+
+    // ترتيب الفنادق حسب المسافة إذا تم تمرير إحداثيات
+    if (longitude && latitude) {
+        hotelsWithRoomCount.sort((a, b) => {
+            // الفنادق التي لها مسافة محسوبة تأتي أولاً
+            if (a.distance !== null && b.distance === null) return -1;
+            if (a.distance === null && b.distance !== null) return 1;
+            if (a.distance === null && b.distance === null) return 0;
+            return a.distance - b.distance; // ترتيب تصاعدي حسب المسافة
+        });
+    }
 
     // تنسيق البيانات للموبايل
     const formattedHotels = hotelsWithRoomCount.map(hotel => ({
@@ -452,15 +550,34 @@ const getAllHotelsForMobile = catchAsync(async (req, res) => {
             longitude: hotel.location.coordinates[0],
             latitude: hotel.location.coordinates[1]
         } : null,
+        distance: hotel.distance, // المسافة بالكيلومتر (null إذا لم يتم تمرير إحداثيات المستخدم)
         roomsCount: hotel.roomsCount || 0
     }));
 
+    // تحديد رسالة الاستجابة بناءً على نوع البحث
+    let message = 'تم جلب الفنادق بنجاح';
+    if (useLocationFilter && result.data.length > 0) {
+        message = 'تم جلب الفنادق القريبة من موقعك بنجاح';
+    } else if (useLocationFilter && result.data.length === 0) {
+        message = 'لم يتم العثور على فنادق قريبة، تم جلب جميع الفنادق المتاحة';
+    } else if (search) {
+        message = `تم جلب الفنادق المطابقة لـ "${search}" بنجاح`;
+    }
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
-        message: 'تم جلب الفنادق بنجاح',
+        message: message,
         data: {
             count: result.pagination.totalCount,
-            hotels: formattedHotels
+            hotels: formattedHotels,
+            searchInfo: {
+                hasLocationFilter: useLocationFilter,
+                searchTerm: search || null,
+                userLocation: longitude && latitude ? {
+                    longitude: parseFloat(longitude),
+                    latitude: parseFloat(latitude)
+                } : null
+            }
         },
         pagination: result.pagination
     });

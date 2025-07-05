@@ -20,7 +20,7 @@ const handleValidationErrors = (req, res, next) => {
     next();
 };
 
-// التحقق من صحة إضافة بلد جديد
+// التحقق من صحة إضافة بلد جديد (فقط الحقول المطلوبة: name{ar, en}, code)
 const validateAddCountry = [
     body('name')
         .isObject()
@@ -61,8 +61,8 @@ const validateAddCountry = [
         .trim()
         .isLength({ min: 2, max: 3 })
         .withMessage('كود البلد يجب أن يكون بين 2 و 3 أحرف')
-        .matches(/^[A-Z]+$/)
-        .withMessage('كود البلد يجب أن يحتوي على أحرف إنجليزية كبيرة فقط')
+        .matches(/^[A-Za-z]+$/)
+        .withMessage('كود البلد يجب أن يحتوي على أحرف إنجليزية فقط (كبيرة أو صغيرة)')
         .custom(async (value) => {
             const existingCountry = await Country.findOne({ code: value.toUpperCase() });
             if (existingCountry) {
@@ -71,10 +71,23 @@ const validateAddCountry = [
             return true;
         }),
 
+    // رفض أي حقول أخرى غير مسموحة
+    body()
+        .custom((value, { req }) => {
+            const allowedFields = ['name', 'code'];
+            const receivedFields = Object.keys(req.body);
+            const invalidFields = receivedFields.filter(field => !allowedFields.includes(field));
+
+            if (invalidFields.length > 0) {
+                throw new Error(`الحقول التالية غير مسموحة: ${invalidFields.join(', ')}`);
+            }
+            return true;
+        }),
+
     handleValidationErrors
 ];
 
-// التحقق من صحة تحديث البلد
+// التحقق من صحة تحديث البلد (فقط الحقول المطلوبة: name{ar, en}, code, isActive)
 const validateUpdateCountry = [
     body('name')
         .optional()
@@ -102,35 +115,26 @@ const validateUpdateCountry = [
         .trim()
         .isLength({ min: 2, max: 3 })
         .withMessage('كود البلد يجب أن يكون بين 2 و 3 أحرف')
-        .matches(/^[A-Z]+$/)
-        .withMessage('كود البلد يجب أن يحتوي على أحرف إنجليزية كبيرة فقط'),
-
-    body('phoneCode')
-        .optional()
-        .matches(/^\+\d{1,4}$/)
-        .withMessage('كود الهاتف يجب أن يبدأ بـ + ويحتوي على أرقام فقط'),
-
-    body('currency')
-        .optional()
-        .isObject()
-        .withMessage('العملة يجب أن تكون كائن'),
-
-    body('currency.code')
-        .optional()
-        .isLength({ min: 3, max: 3 })
-        .withMessage('كود العملة يجب أن يكون 3 أحرف')
-        .matches(/^[A-Z]+$/)
-        .withMessage('كود العملة يجب أن يحتوي على أحرف إنجليزية كبيرة فقط'),
-
-    body('currency.symbol')
-        .optional()
-        .isLength({ min: 1, max: 5 })
-        .withMessage('رمز العملة يجب أن يكون بين 1 و 5 أحرف'),
+        .matches(/^[A-Za-z]+$/)
+        .withMessage('كود البلد يجب أن يحتوي على أحرف إنجليزية فقط (كبيرة أو صغيرة)'),
 
     body('isActive')
         .optional()
         .isBoolean()
         .withMessage('حالة البلد يجب أن تكون true أو false'),
+
+    // رفض أي حقول أخرى غير مسموحة
+    body()
+        .custom((value, { req }) => {
+            const allowedFields = ['name', 'code', 'isActive'];
+            const receivedFields = Object.keys(req.body);
+            const invalidFields = receivedFields.filter(field => !allowedFields.includes(field));
+
+            if (invalidFields.length > 0) {
+                throw new Error(`الحقول التالية غير مسموحة: ${invalidFields.join(', ')}`);
+            }
+            return true;
+        }),
 
     handleValidationErrors
 ];

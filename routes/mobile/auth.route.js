@@ -7,6 +7,7 @@ const path = require('path');
 const {
     register,
     login,
+    refreshToken,
     getProfile,
     updatePassword,
     updateProfile
@@ -19,6 +20,7 @@ const verifyToken = require('../../middelWare/verifyToken');
 const {
     validateRegister,
     validateLogin,
+    validateRefreshToken,
     validateUpdatePassword,
     validateUpdateProfile
 } = require('../../middelWare/customerValidation');
@@ -73,6 +75,14 @@ router.post('/register', validateRegister, register);
  * @body    email, password
  */
 router.post('/login', validateLogin, login);
+
+/**
+ * @route   POST /api/mobile/auth/refresh-token
+ * @desc    تحديث رمز الوصول باستخدام رمز التحديث
+ * @access  Public
+ * @body    userId, refreshToken
+ */
+router.post('/refresh-token', validateRefreshToken, refreshToken);
 
 /**
  * @route   GET /api/mobile/auth/profile

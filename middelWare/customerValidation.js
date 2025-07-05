@@ -95,6 +95,7 @@ const validateRegister = [
         .withMessage('معرف المدينة غير صحيح'),
 
     body('detailedAddress')
+        .optional()
         .isLength({ min: 5, max: 200 })
         .withMessage('العنوان التفصيلي يجب أن يكون بين 5 و 200 حرف'),
 
@@ -393,9 +394,25 @@ const validateUpdateProfile = [
     handleValidationErrors
 ];
 
+// التحقق من صحة تحديث رمز الوصول
+const validateRefreshToken = [
+    body('userId')
+        .isMongoId()
+        .withMessage('معرف المستخدم غير صحيح'),
+
+    body('refreshToken')
+        .notEmpty()
+        .withMessage('رمز التحديث مطلوب')
+        .isLength({ min: 10 })
+        .withMessage('رمز التحديث غير صحيح'),
+
+    handleValidationErrors
+];
+
 module.exports = {
     validateRegister,
     validateLogin,
+    validateRefreshToken,
     validateUpdatePassword,
     validateUpdateCustomer,
     validateCustomerId,
