@@ -1,7 +1,7 @@
 const { Booking, User, Room, PaymentMethod } = require('../models');
 const { catchAsync, AppError } = require('../utils/errorHandler');
 const httpStatusText = require('../utils/httpStatusText');
-const { paginate } = require('../utils/pagination');
+const { paginate ,generateBookingNumber} = require('../utils/pagination');
 
 /**
  * @desc    التحقق من توفر الغرفة في فترة معينة
@@ -155,9 +155,11 @@ const bookRoom = catchAsync(async (req, res) => {
     // حساب السعر الإجمالي
     const roomTotalPrice = room.price * numberOfNights;
     const finalTotalAmount = totalAmount || (roomTotalPrice - (discount || 0));
+    const bookingNumber = await generateBookingNumber();
 
     // إنشاء بيانات الحجز الجديد
     const newBookingData = {
+        bookingNumber,
         customer: customerId,
         hotel: room.hotel._id,
         room: roomId,
