@@ -9,6 +9,7 @@ const {
     getAllUserNames,
     addUser,
     updateUserData,
+    changeUserPassword, // الدالة الجديدة لتغيير كلمة المرور
     changeUserStatus,
     deleteUser
 } = require('../../controllers/user.Controller');
@@ -24,7 +25,8 @@ const {
     validateCustomerId,
     validateGetCustomers,
     validateGetCustomerNames,
-    validateChangeCustomerStatus
+    validateChangeCustomerStatus,
+    validateChangePassword // الvalidation الجديد لتغيير كلمة المرور
 } = require('../../middelWare/customerValidation');
 
 // استيراد أدوار الموظفين
@@ -80,6 +82,14 @@ router.put('/:userId', adminAndAbove, validateCustomerId, validateUpdateCustomer
  * @body    status, reason
  */
 router.put('/changeStatus/:userId', adminAndAbove, validateCustomerId, validateChangeCustomerStatus, changeUserStatus);
+
+/**
+ * @route   PUT /api/admin/users/:userId/password
+ * @desc    تغيير كلمة مرور المستخدم من لوحة التحكم
+ * @access  Admin and above
+ * @body    newPassword, confirmPassword
+ */
+router.put('/:userId/password', adminAndAbove, validateCustomerId, validateChangePassword, changeUserPassword);
 
 /**
  * @route   DELETE /api/admin/users/:userId

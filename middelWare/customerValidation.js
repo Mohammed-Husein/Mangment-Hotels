@@ -161,6 +161,25 @@ const validateUpdatePassword = [
     handleValidationErrors
 ];
 
+// التحقق من صحة تغيير كلمة المرور من لوحة التحكم
+const validateChangePassword = [
+    body('newPassword')
+        .isLength({ min: 6 })
+        .withMessage('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل')
+        .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
+        .withMessage('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم'),
+
+    body('confirmPassword')
+        .custom((value, { req }) => {
+            if (value !== req.body.newPassword) {
+                throw new Error('تأكيد كلمة المرور غير متطابق');
+            }
+            return true;
+        }),
+
+    handleValidationErrors
+];
+
 // التحقق من صحة تحديث العميل
 const validateUpdateCustomer = [
     body('firstName')
@@ -414,6 +433,7 @@ module.exports = {
     validateLogin,
     validateRefreshToken,
     validateUpdatePassword,
+    validateChangePassword, // الvalidation الجديد لتغيير كلمة المرور من لوحة التحكم
     validateUpdateCustomer,
     validateCustomerId,
     validateGetCustomers,

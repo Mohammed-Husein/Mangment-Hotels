@@ -517,6 +517,41 @@ const updatePassword = catchAsync(async (req, res) => {
     });
 });
 
+/**
+ * @desc    تحديث كلمة مرور المستخدم من لوحة التحكم
+ * @route   PUT /api/admin/users/:userId/password
+ * @access  Admin, SuperAdmin
+ */
+const changeUserPassword = catchAsync(async (req, res) => {
+    const { userId } = req.params;
+    const { newPassword, confirmPassword } = req.body;
+
+    // التحقق من تطابق كلمة المرور الجديدة
+    if (newPassword !== confirmPassword) {
+        throw new AppError('كلمة المرور الجديدة وتأكيد كلمة المرور غير متطابقتان', 400);
+    }
+
+    // البحث عن المستخدم
+    const user = await User.findById(userId);
+    if (!user) {
+        throw new AppError('المستخدم غير موجود', 404);
+    }
+
+    // تشفير كلمة المرور الجديدة
+    const hashedPassword = await hashPassword(newPassword);
+
+    // تحديث كلمة المرور وإزالة جميع رموز التحديث (لإجبار إعادة تسجيل الدخول)
+    await User.findByIdAndUpdate(userId, {
+        password: hashedPassword,
+        refreshTokens: []
+    });
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم تحديث كلمة المرور بنجاح'
+    });
+});
+
 // تم إزالة updateUserRole للمستخدمين العاديين لأنهم لا يحتاجون أدوار
 
 /**
@@ -893,6 +928,7 @@ module.exports = {
     updateUser,
     updateUserData,
     updatePassword,
+    changeUserPassword, // الدالة الجديدة لتغيير كلمة المرور من لوحة التحكم
     changeUserStatus,
     deleteUser,
     getProfile,

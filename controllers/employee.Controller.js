@@ -1,6 +1,7 @@
 const Employee = require("../models/employee.model.js");
 const Country = require("../models/country.model.js");
-const genirate_JWT = require("../utils/genirate_JWT.js");
+const Governorate = require("../models/governorate.model.js");
+const Region = require("../models/region.model.js");
 const httpStatusText = require("../utils/httpStatusText.js");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -50,6 +51,36 @@ const cleanExpiredRefreshTokens = async (employeeId) => {
             }
         }
     });
+};
+
+// دالة توليد رمز الوصول للوحة التحكم (مدة ساعة واحدة)
+const generateAdminAccessToken = async (payload) => {
+    try {
+        const tokenPayload = {
+            ...payload,
+            'generate-date': new Date().toLocaleString('en-US', {
+                month: '2-digit',
+                day: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: false
+            }).replace(/(\d+)\/(\d+)\/(\d+),\s(\d+):(\d+):(\d+)/, '$3/$1/$2 $4:$5:$6'),
+            'iss': 'Issuer',
+            'aud': 'Audience'
+        };
+
+        const token = jwt.sign(
+            tokenPayload,
+            process.env.JWT_SECRET_KEY,
+            { expiresIn: "1h" } // ساعة واحدة للوحة التحكم
+        );
+        return token;
+    } catch (error) {
+        console.error("Error generating admin token:", error);
+        throw new Error("Failed to generate admin token");
+    }
 };
 
 /**
@@ -174,16 +205,46 @@ const getAllNames = catchAsync(async (req, res) => {
  */
 const getEmployeeById = catchAsync(async (req, res) => {
     const { id } = req.params;
-    
+
     const employee = await Employee.findById(id)
         .populate('countryId', 'name code')
         .populate('createdBy', 'fullName')
         .populate('statusChangedBy', 'fullName');
-    
+
     if (!employee) {
         throw new AppError('الموظف غير موجود', 404);
     }
-    
+
+    // الحصول على أول محافظة ومنطقة من البلد المحدد
+    let governorateId = null;
+    let regionId = null;
+    let governorateName = null;
+    let regionName = null;
+
+    if (employee.countryId) {
+        // البحث عن أول محافظة في هذا البلد
+        const firstGovernorate = await Governorate.findOne({
+            country: employee.countryId._id,
+            isActive: true
+        }).select('name');
+
+        if (firstGovernorate) {
+            governorateId = firstGovernorate._id;
+            governorateName = firstGovernorate.name?.ar || firstGovernorate.name?.en;
+
+            // البحث عن أول منطقة في هذه المحافظة
+            const firstRegion = await Region.findOne({
+                governorate: firstGovernorate._id,
+                isActive: true
+            }).select('name');
+
+            if (firstRegion) {
+                regionId = firstRegion._id;
+                regionName = firstRegion.name?.ar || firstRegion.name?.en;
+            }
+        }
+    }
+
     // تنسيق البيانات
     const formattedEmployee = {
         id: employee._id,
@@ -194,8 +255,12 @@ const getEmployeeById = catchAsync(async (req, res) => {
         imageUrl: employee.imageUrl,
         role: employee.role,
         countryId: employee.countryId?._id,
-        countryName: employee.countryId ? 
+        countryName: employee.countryId ?
             (employee.countryId.name?.ar || employee.countryId.name?.en) : null,
+        governorateId: governorateId, // إضافة معرف المحافظة
+        governorateName: governorateName, // إضافة اسم المحافظة
+        regionId: regionId, // إضافة معرف المنطقة
+        regionName: regionName, // إضافة اسم المنطقة
         status: employee.status,
         lastSeen: employee.lastSeen,
         hireDate: employee.hireDate,
@@ -208,7 +273,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
         createdAt: employee.createdAt,
         updatedAt: employee.updatedAt
     };
-    
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم جلب بيانات الموظف بنجاح',
@@ -419,8 +484,8 @@ const login = catchAsync(async (req, res) => {
     // تنظيف رموز التحديث المنتهية الصلاحية
     await cleanExpiredRefreshTokens(employee._id);
 
-    // توليد رموز الوصول
-    const accessToken = await genirate_JWT({
+    // توليد رموز الوصول (ساعة واحدة للوحة التحكم)
+    const accessToken = await generateAdminAccessToken({
         email: employee.email,
         id: employee._id,
         role: employee.role,
@@ -486,8 +551,8 @@ const refreshToken = catchAsync(async (req, res) => {
         throw new AppError('حسابك غير نشط، يرجى التواصل مع الإدارة', 403);
     }
 
-    // توليد رمز وصول جديد
-    const newAccessToken = await genirate_JWT({
+    // توليد رمز وصول جديد (ساعة واحدة للوحة التحكم)
+    const newAccessToken = await generateAdminAccessToken({
         email: employee.email,
         id: employee._id,
         role: employee.role,
