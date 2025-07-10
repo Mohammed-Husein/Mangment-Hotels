@@ -519,7 +519,7 @@ const updatePassword = catchAsync(async (req, res) => {
 
 /**
  * @desc    تحديث كلمة مرور المستخدم من لوحة التحكم
- * @route   PUT /api/admin/users/:userId/password
+ * @route   PUT /api/admin/users/password/:userId
  * @access  Admin, SuperAdmin
  */
 const changeUserPassword = catchAsync(async (req, res) => {
