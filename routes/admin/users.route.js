@@ -97,7 +97,7 @@ router.post('/changeStatus/:userId', adminAndAbove, validateCustomerId, validate
  * @access  Admin and above
  * @body    newPassword, confirmPassword
  */
-router.put('/:userId/password', adminAndAbove, validateCustomerId, validateChangePassword, changeUserPassword);
+router.put('/password/:userId', adminAndAbove, validateCustomerId, validateChangePassword, changeUserPassword);
 
 /**
  * @route   DELETE /api/admin/users/:userId
