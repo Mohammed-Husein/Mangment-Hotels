@@ -216,7 +216,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
     }
 
     // الحصول على أول محافظة ومنطقة من البلد المحدد
-    let governorateId = null;
+    let cityId = null;
     let regionId = null;
     let governorateName = null;
     let regionName = null;
@@ -229,12 +229,12 @@ const getEmployeeById = catchAsync(async (req, res) => {
         }).select('name');
 
         if (firstGovernorate) {
-            governorateId = firstGovernorate._id;
+            cityId = firstGovernorate._id;
             governorateName = firstGovernorate.name?.ar || firstGovernorate.name?.en;
 
             // البحث عن أول منطقة في هذه المحافظة
             const firstRegion = await Region.findOne({
-                governorate: firstGovernorate._id,
+                city: firstGovernorate._id,
                 isActive: true
             }).select('name');
 
@@ -257,7 +257,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
         countryId: employee.countryId?._id,
         countryName: employee.countryId ?
             (employee.countryId.name?.ar || employee.countryId.name?.en) : null,
-        governorateId: governorateId, // إضافة معرف المحافظة
+        cityId: cityId, // إضافة معرف المحافظة
         governorateName: governorateName, // إضافة اسم المحافظة
         regionId: regionId, // إضافة معرف المنطقة
         regionName: regionName, // إضافة اسم المنطقة
