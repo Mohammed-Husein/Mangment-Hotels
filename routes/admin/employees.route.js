@@ -162,7 +162,7 @@ router.put('/:id',
  * @access  Admin and above
  * @body    newPassword
  */
-router.put('/:id/password',
+router.put('/password/:id',
     adminAndAbove,
     validateEmployeeId,
     validateUpdatePassword,

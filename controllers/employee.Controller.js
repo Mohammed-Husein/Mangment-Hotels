@@ -234,7 +234,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
 
             // البحث عن أول منطقة في هذه المحافظة
             const firstRegion = await Region.findOne({
-                city: firstGovernorate._id,
+                governorate: firstGovernorate._id,
                 isActive: true
             }).select('name');
 
