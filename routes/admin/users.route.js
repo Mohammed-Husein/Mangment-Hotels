@@ -84,6 +84,14 @@ router.put('/:userId', adminAndAbove, validateCustomerId, validateUpdateCustomer
 router.put('/changeStatus/:userId', adminAndAbove, validateCustomerId, validateChangeCustomerStatus, changeUserStatus);
 
 /**
+ * @route   POST /api/admin/users/changeStatus/:userId
+ * @desc    تغيير حالة العميل (تفعيل/تعطيل/تعليق) - POST للتوافق
+ * @access  Admin and above
+ * @body    status, reason
+ */
+router.post('/changeStatus/:userId', adminAndAbove, validateCustomerId, validateChangeCustomerStatus, changeUserStatus);
+
+/**
  * @route   PUT /api/admin/users/password/:userId
  * @desc    تغيير كلمة مرور المستخدم من لوحة التحكم
  * @access  Admin and above

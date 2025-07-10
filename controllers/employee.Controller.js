@@ -291,6 +291,7 @@ const createEmployee = catchAsync(async (req, res) => {
         fullName,
         email,
         phoneNumber,
+        alternatePhoneNumber,
         password,
         role,
         countryId,
@@ -320,6 +321,7 @@ const createEmployee = catchAsync(async (req, res) => {
         fullName,
         email: email.toLowerCase(),
         phoneNumber,
+        alternatePhoneNumber,
         password: hashedPassword,
         role,
         countryId,
@@ -355,6 +357,7 @@ const updateEmployee = catchAsync(async (req, res) => {
         fullName,
         email,
         phoneNumber,
+        alternatePhoneNumber,
         role,
         countryId,
         status,
@@ -369,7 +372,7 @@ const updateEmployee = catchAsync(async (req, res) => {
         throw new AppError('الموظف غير موجود', 404);
     }
 
-    // التحقق من عدم وجود موظف آخر بنفس البريد الإلكتروني
+    // التحقق من عدم وجود موظف آخر بنفس البريد الإلكتروني (فقط إذا تم تغيير البريد)
     if (email && email.toLowerCase() !== employee.email) {
         const existingEmployee = await Employee.findOne({
             email: email.toLowerCase(),
@@ -377,6 +380,17 @@ const updateEmployee = catchAsync(async (req, res) => {
         });
         if (existingEmployee) {
             throw new AppError('يوجد موظف مسجل بهذا البريد الإلكتروني مسبقاً', 400);
+        }
+    }
+
+    // التحقق من عدم وجود موظف آخر بنفس رقم الهاتف (فقط إذا تم تغيير رقم الهاتف)
+    if (phoneNumber && phoneNumber !== employee.phoneNumber) {
+        const existingPhone = await Employee.findOne({
+            phoneNumber,
+            _id: { $ne: id }
+        });
+        if (existingPhone) {
+            throw new AppError('يوجد موظف مسجل بهذا رقم الهاتف مسبقاً', 400);
         }
     }
 
@@ -396,6 +410,7 @@ const updateEmployee = catchAsync(async (req, res) => {
     if (fullName) updateData.fullName = fullName;
     if (email) updateData.email = email.toLowerCase();
     if (phoneNumber) updateData.phoneNumber = phoneNumber;
+    if (alternatePhoneNumber !== undefined) updateData.alternatePhoneNumber = alternatePhoneNumber;
     if (role) updateData.role = role;
     if (countryId) updateData.countryId = countryId;
     if (permissions) updateData.permissions = permissions;

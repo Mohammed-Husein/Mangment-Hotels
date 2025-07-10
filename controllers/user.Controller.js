@@ -812,8 +812,8 @@ const updateUserData = catchAsync(async (req, res) => {
         throw new AppError('المستخدم غير موجود', 404);
     }
 
-    // التحقق من عدم تكرار البريد الإلكتروني
-    if (updateData.email) {
+    // التحقق من عدم تكرار البريد الإلكتروني (فقط إذا تم تغييره)
+    if (updateData.email && updateData.email.toLowerCase() !== existingUser.email) {
         const emailExists = await User.findOne({
             email: updateData.email.toLowerCase(),
             _id: { $ne: userId }
@@ -826,8 +826,8 @@ const updateUserData = catchAsync(async (req, res) => {
         updateData.email = updateData.email.toLowerCase();
     }
 
-    // التحقق من عدم تكرار رقم الهاتف
-    if (updateData.phoneNumber) {
+    // التحقق من عدم تكرار رقم الهاتف (فقط إذا تم تغييره)
+    if (updateData.phoneNumber && updateData.phoneNumber !== existingUser.phoneNumber) {
         const phoneExists = await User.findOne({
             phoneNumber: updateData.phoneNumber,
             _id: { $ne: userId }

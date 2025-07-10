@@ -61,6 +61,18 @@ const employeeSchema = new mongoose.Schema({
         }
     },
 
+    // رقم الهاتف الاحتياطي (اختياري)
+    alternatePhoneNumber: {
+        type: String,
+        validate: {
+            validator: function(value) {
+                // إذا تم توفير القيمة، يجب أن تكون رقم هاتف صحيح
+                return !value || validator.isMobilePhone(value, 'any');
+            },
+            message: 'يرجى إدخال رقم هاتف احتياطي صحيح'
+        }
+    },
+
     // كلمة المرور
     password: {
         type: String,

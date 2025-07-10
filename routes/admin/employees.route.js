@@ -133,7 +133,7 @@ router.get('/:id', adminAndAbove, validateEmployeeId, getEmployeeById);
  * @route   POST /api/admin/employees
  * @desc    إنشاء موظف جديد
  * @access  Admin and above
- * @body    fullName, email, phoneNumber, password, role, countryId, status, permissions, notes, deviceToken
+ * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), password, role, countryId, status, permissions, notes, deviceToken
  */
 router.post('/', 
     adminAndAbove, 
@@ -146,7 +146,7 @@ router.post('/',
  * @route   PUT /api/admin/employees/:id
  * @desc    تحديث بيانات موظف
  * @access  Admin and above
- * @body    fullName, email, phoneNumber, role, countryId, status, permissions, notes, deviceToken, statusChangeReason
+ * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), role, countryId, status, permissions, notes, deviceToken, statusChangeReason
  */
 router.put('/:id', 
     adminAndAbove, 
@@ -176,6 +176,19 @@ router.put('/password/:id',
  * @body    status, reason
  */
 router.put('/changeEmployeeStatus/:id',
+    adminAndAbove,
+    validateEmployeeId,
+    validateChangeEmployeeStatus,
+    changeEmployeeStatus
+);
+
+/**
+ * @route   POST /api/admin/employees/changeEmployeeStatus/:id
+ * @desc    تغيير حالة الموظف (تفعيل/تعطيل/تعليق/إجازة) - POST للتوافق
+ * @access  Admin and above
+ * @body    status, reason
+ */
+router.post('/changeEmployeeStatus/:id',
     adminAndAbove,
     validateEmployeeId,
     validateChangeEmployeeStatus,

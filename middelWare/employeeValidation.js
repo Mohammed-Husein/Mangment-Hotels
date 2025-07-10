@@ -53,6 +53,11 @@ const validateCreateEmployee = [
             return true;
         }),
 
+    body('alternatePhoneNumber')
+        .optional()
+        .isMobilePhone('any')
+        .withMessage('رقم الهاتف الاحتياطي غير صحيح'),
+
     body('password')
         .isLength({ min: 6 })
         .withMessage('كلمة المرور يجب أن تكون 6 أحرف على الأقل')
@@ -111,6 +116,11 @@ const validateUpdateEmployee = [
         .optional()
         .isMobilePhone('any')
         .withMessage('رقم الهاتف غير صحيح'),
+
+    body('alternatePhoneNumber')
+        .optional()
+        .isMobilePhone('any')
+        .withMessage('رقم الهاتف الاحتياطي غير صحيح'),
 
     body('role')
         .optional()
