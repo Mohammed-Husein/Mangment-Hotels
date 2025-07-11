@@ -16,7 +16,9 @@ const {
     logout,
     logoutAll,
     updatePassword,
-    changeEmployeeStatus
+    changeEmployeeStatus,
+    getMyProfile,
+    modifyMyProfile
 } = require('../../controllers/employee.Controller');
 
 // استيراد middleware
@@ -33,7 +35,8 @@ const {
     validateChangeEmployeeStatus,
     validateEmployeeId,
     validateGetEmployees,
-    validateGetEmployeeNames
+    validateGetEmployeeNames,
+    validateModifyMyProfile
 } = require('../../middelWare/employeeValidation');
 
 // إعداد multer لرفع الصور
@@ -201,5 +204,27 @@ router.post('/changeEmployeeStatus/:id',
  * @access  SuperAdmin only
  */
 router.delete('/:id', superAdminOnly, validateEmployeeId, deleteEmployee);
+
+/**
+ * @route   GET /api/admin/employees/my-profile
+ * @desc    جلب الملف الشخصي للموظف المسجل
+ * @access  Private (Employee)
+ * @returns id, email, phoneNumber, role, imageUrl
+ */
+router.get('/my-profile', verifyToken, getMyProfile);
+
+/**
+ * @route   PUT /api/admin/employees/my-profile
+ * @desc    تعديل الملف الشخصي للموظف المسجل
+ * @access  Private (Employee)
+ * @body    email (optional), phoneNumber (optional)
+ * @files   image (optional) - صورة الملف الشخصي
+ */
+router.put('/my-profile',
+    verifyToken,
+    upload.single('image'),
+    validateModifyMyProfile,
+    modifyMyProfile
+);
 
 module.exports = router;

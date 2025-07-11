@@ -751,6 +751,99 @@ const changeEmployeeStatus = catchAsync(async (req, res) => {
     });
 });
 
+/**
+ * @desc    جلب الملف الشخصي للموظف المسجل
+ * @route   GET /api/employee/my-profile
+ * @access  Private (Employee)
+ */
+const getMyProfile = catchAsync(async (req, res) => {
+    const employeeId = req.decoded?.id;
+
+    if (!employeeId) {
+        throw new AppError('معرف الموظف غير موجود في الرمز المميز', 401);
+    }
+
+    const employee = await Employee.findById(employeeId)
+        .select('_id email phoneNumber role imageUrl');
+
+    if (!employee) {
+        throw new AppError('الموظف غير موجود', 404);
+    }
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم جلب الملف الشخصي بنجاح',
+        data: { employee }
+    });
+});
+
+/**
+ * @desc    تعديل الملف الشخصي للموظف المسجل
+ * @route   PUT /api/employee/my-profile
+ * @access  Private (Employee)
+ * @body    email, phoneNumber
+ * @files   image (optional)
+ */
+const modifyMyProfile = catchAsync(async (req, res) => {
+    const employeeId = req.decoded?.id;
+    const { email, phoneNumber } = req.body;
+
+    if (!employeeId) {
+        throw new AppError('معرف الموظف غير موجود في الرمز المميز', 401);
+    }
+
+    // التحقق من وجود الموظف
+    const employee = await Employee.findById(employeeId);
+    if (!employee) {
+        throw new AppError('الموظف غير موجود', 404);
+    }
+
+    // إعداد البيانات للتحديث
+    const updateData = {};
+
+    // التحقق من البريد الإلكتروني إذا تم تغييره
+    if (email && email.toLowerCase() !== employee.email) {
+        const existingEmployee = await Employee.findOne({
+            email: email.toLowerCase(),
+            _id: { $ne: employeeId }
+        });
+        if (existingEmployee) {
+            throw new AppError('يوجد موظف مسجل بهذا البريد الإلكتروني مسبقاً', 400);
+        }
+        updateData.email = email.toLowerCase();
+    }
+
+    // التحقق من رقم الهاتف إذا تم تغييره
+    if (phoneNumber && phoneNumber !== employee.phoneNumber) {
+        const existingPhone = await Employee.findOne({
+            phoneNumber,
+            _id: { $ne: employeeId }
+        });
+        if (existingPhone) {
+            throw new AppError('يوجد موظف مسجل بهذا رقم الهاتف مسبقاً', 400);
+        }
+        updateData.phoneNumber = phoneNumber;
+    }
+
+    // تحديث الصورة إذا تم رفعها
+    if (req.file) {
+        updateData.imageUrl = req.file.filename;
+    }
+
+    // تحديث البيانات
+    const updatedEmployee = await Employee.findByIdAndUpdate(
+        employeeId,
+        updateData,
+        { new: true, runValidators: true }
+    ).select('_id email phoneNumber role imageUrl');
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم تحديث الملف الشخصي بنجاح',
+        data: { employee: updatedEmployee }
+    });
+});
+
 module.exports = {
     getAllEmployees,
     getAllNames,
@@ -763,5 +856,7 @@ module.exports = {
     logout,
     logoutAll,
     updatePassword,
-    changeEmployeeStatus
+    changeEmployeeStatus,
+    getMyProfile,
+    modifyMyProfile
 };

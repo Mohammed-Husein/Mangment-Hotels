@@ -65,13 +65,10 @@ router.get('/', (req, res) => {
             },
             mobile: {
                 auth: '/api/mobile/auth',
-                 hotels: '/api/mobile/hotels',
+                hotels: '/api/mobile/hotels',
                 paymentMethods: '/api/mobile/payment-methods',
-              rooms: '/api/mobile/rooms',
-             bookings: '/api/mobile/bookings'
-
-
-
+                rooms: '/api/mobile/rooms',
+                bookings: '/api/mobile/bookings'
             }
         }
     });

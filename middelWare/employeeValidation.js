@@ -294,6 +294,23 @@ const validateGetEmployeeNames = [
     handleValidationErrors
 ];
 
+// التحقق من صحة تعديل الملف الشخصي للموظف
+const validateModifyMyProfile = [
+    body('email')
+        .optional()
+        .isEmail()
+        .withMessage('البريد الإلكتروني غير صحيح')
+        .normalizeEmail()
+        .toLowerCase(),
+
+    body('phoneNumber')
+        .optional()
+        .isMobilePhone('any')
+        .withMessage('رقم الهاتف غير صحيح'),
+
+    handleValidationErrors
+];
+
 module.exports = {
     validateCreateEmployee,
     validateUpdateEmployee,
@@ -304,5 +321,6 @@ module.exports = {
     validateEmployeeId,
     validateGetEmployees,
     validateGetEmployeeNames,
+    validateModifyMyProfile,
     handleValidationErrors
 };
