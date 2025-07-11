@@ -203,14 +203,16 @@ const getRegionById = catchAsync(async (req, res) => {
             ar: region.name?.ar,
             en: region.name?.en
         },
-        governorate: {
-            id: region.governorate?._id,
-            name: region.governorate?.name
-        },
-        country: {
-            id: region.governorate?.country?._id,
-            name: region.governorate?.country?.name
-        },
+        // governorate: {
+        //     id: region.governorate?._id,
+        //     name: region.governorate?.name
+        // },
+        // country: {
+        //     id: region.governorate?.country?._id,
+        //     name: region.governorate?.country?.name
+        // },
+        governorateId:region.governorate?._id,
+        countryId:region.governorate?.country?._id,
         isActive: region.isActive,
         createdAt: region.createdAt,
         updatedAt: region.updatedAt

@@ -79,12 +79,13 @@ const getAllGovernorateNames = catchAsync(async (req, res) => {
     query.isActive = req.query.isActive !== undefined ? req.query.isActive === 'true' : true;
     
     const governorates = await Governorate.find(query)
-        .select('_id name')
+        .select('_id name country')
         .sort({ 'name.ar': 1 });
     
     const formattedGovernorates = governorates.map(governorate => ({
         id: governorate._id,
-        name: governorate.name?.ar || governorate.name?.en || 'غير محدد'
+        name: governorate.name?.ar || governorate.name?.en || 'غير محدد',
+        countryId:governorate.country,
     }));
     
     res.status(200).json({
