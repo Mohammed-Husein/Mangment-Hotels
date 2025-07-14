@@ -284,7 +284,7 @@ const getHotelById = catchAsync(async (req, res) => {
 
 /**
  * @desc    تحديث بيانات فندق
- * @route   PUT /api/admin/hotels/:id
+ * @route   POST /api/admin/hotels/:id/update
  * @access  Admin and above
  */
 const updateHotel = catchAsync(async (req, res) => {

@@ -89,7 +89,7 @@ const uploadSingle = (fieldName) => {
 };
 
 // middleware لرفع صورة الفندق
-const uploadHotelImage = uploadSingle('hotelImage');
+const uploadHotelImage = uploadSingle('imagefile');
 
 // دالة لحذف الملف القديم
 const deleteOldFile = (filePath) => {

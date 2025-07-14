@@ -52,17 +52,17 @@ router.get('/:id', managerAndAbove, validateHotelId, getHotelById);
  * @route   POST /api/admin/hotels
  * @desc    إضافة فندق جديد
  * @access  Admin and above
- * @body    nameAr, nameEn?, status?, governorateId, regionId?, longitude?, latitude?, stars?, hotelImage (file)
+ * @body    nameAr, nameEn?, status?, governorateId, regionId?, longitude?, latitude?, stars?, imagefile (file)
  */
 router.post('/', adminAndAbove, uploadHotelImage, validateAddHotel, addHotel);
 
 /**
- * @route   PUT /api/admin/hotels/:id
+ * @route   POST /api/admin/hotels/:id/update
  * @desc    تحديث بيانات الفندق
  * @access  Admin and above
- * @body    nameAr?, nameEn?, status?, governorateId?, regionId?, longitude?, latitude?, stars?, type?, hotelImage? (file)
+ * @body    nameAr?, nameEn?, status?, governorateId?, regionId?, longitude?, latitude?, stars?, type?, imagefile? (file)
  */
-router.put('/:id', adminAndAbove, validateHotelId, uploadHotelImage, validateUpdateHotel, updateHotel);
+router.post('/:id/update', adminAndAbove, validateHotelId, uploadHotelImage, validateUpdateHotel, updateHotel);
 
 /**
  * @route   PATCH /api/admin/hotels/:id/status
