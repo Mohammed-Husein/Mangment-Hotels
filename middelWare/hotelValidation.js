@@ -63,11 +63,7 @@ const validateAddHotel = [
         .isFloat({ min: -90, max: 90 })
         .withMessage('خط العرض يجب أن يكون بين -90 و 90'),
 
-    body('employeeId')
-        .notEmpty()
-        .withMessage('معرف الموظف مطلوب')
-        .isMongoId()
-        .withMessage('معرف الموظف غير صحيح'),
+ 
 
     body('isActive')
         .optional()

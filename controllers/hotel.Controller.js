@@ -143,9 +143,7 @@ const addHotel = catchAsync(async (req, res) => {
         throw new AppError('معرف المنطقة مطلوب', 400);
     }
 
-    if (!employeeId) {
-        throw new AppError('معرف الموظف مطلوب', 400);
-    }
+ 
 
     // التحقق من عدم وجود فندق بنفس الاسم في نفس المنطقة
     const existingHotel = await Hotel.findOne({
