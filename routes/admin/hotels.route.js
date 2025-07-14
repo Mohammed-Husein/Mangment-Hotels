@@ -73,4 +73,22 @@ router.put('/:id', adminAndAbove, validateHotelId, uploadHotelImage, validateUpd
 // router.patch('/:id', adminAndAbove, validateHotelId, validateChangeHotelStatus, changeHotelStatus);
 router.delete('/:id', adminAndAbove,  deleteHotel);
 
+// إصلاح مسارات الصور المكررة
+router.post('/fix-images', adminAndAbove, async (req, res) => {
+    try {
+        const { fixDuplicateImagePaths } = require('../../scripts/fixHotelImages');
+        await fixDuplicateImagePaths();
+        res.json({
+            status: 'success',
+            message: 'تم إصلاح مسارات الصور بنجاح'
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: 'error',
+            message: 'حدث خطأ في إصلاح مسارات الصور',
+            error: error.message
+        });
+    }
+});
+
 module.exports = router;

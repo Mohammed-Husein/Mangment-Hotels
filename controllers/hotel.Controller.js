@@ -210,7 +210,7 @@ const addHotel = catchAsync(async (req, res) => {
 
     // إضافة الصورة إذا تم رفعها
     if (req.file) {
-        newHotelData.images = [`uploads/hotels/${req.file.filename}`];
+        newHotelData.images = [req.file.filename];
     }
 
     // إنشاء الفندق الجديد
@@ -368,7 +368,7 @@ const updateHotel = catchAsync(async (req, res) => {
 
     // تحديث الصورة إذا تم رفع صورة جديدة
     if (req.file) {
-        updateData.images = [`uploads/hotels/${req.file.filename}`];
+        updateData.images = [req.file.filename];
     }
 
     // تحديث معرف الموظف المحدث
