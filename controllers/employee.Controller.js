@@ -757,7 +757,7 @@ const changeEmployeeStatus = catchAsync(async (req, res) => {
  * @access  Private (Employee)
  */
 const getMyProfile = catchAsync(async (req, res) => {
-    const employeeId = req.decoded?data.id;
+    const employeeId = req.decoded.id;
 
     if (!employeeId) {
         throw new AppError('معرف الموظف غير موجود في الرمز المميز', 401);
