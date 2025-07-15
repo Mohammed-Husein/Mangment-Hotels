@@ -65,12 +65,16 @@ const validateCreateEmployee = [
         .withMessage('كلمة المرور يجب أن تحتوي على حرف كبير وحرف صغير ورقم'),
 
     body('role')
-        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor'])
+        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor', 'Worker'])
         .withMessage('الدور المحدد غير صحيح'),
 
     body('countryId')
         .isMongoId()
         .withMessage('معرف البلد غير صحيح'),
+
+    body('hotelId')
+        .isMongoId()
+        .withMessage('معرف الفندق غير صحيح'),
 
     body('status')
         .optional()
@@ -86,6 +90,11 @@ const validateCreateEmployee = [
         .optional()
         .isLength({ max: 500 })
         .withMessage('الملاحظات يجب أن لا تتجاوز 500 حرف'),
+
+    body('taskDescription')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('وصف المهام يجب أن لا يتجاوز 1000 حرف'),
 
     body('deviceToken')
         .optional()
@@ -124,13 +133,18 @@ const validateUpdateEmployee = [
 
     body('role')
         .optional()
-        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor'])
+        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor', 'Worker'])
         .withMessage('الدور المحدد غير صحيح'),
 
     body('countryId')
         .optional()
         .isMongoId()
         .withMessage('معرف البلد غير صحيح'),
+
+    body('hotelId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف الفندق غير صحيح'),
 
     body('status')
         .optional()
@@ -146,6 +160,11 @@ const validateUpdateEmployee = [
         .optional()
         .isLength({ max: 500 })
         .withMessage('الملاحظات يجب أن لا تتجاوز 500 حرف'),
+
+    body('taskDescription')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('وصف المهام يجب أن لا يتجاوز 1000 حرف'),
 
     body('deviceToken')
         .optional()
@@ -253,7 +272,7 @@ const validateGetEmployees = [
 
     query('role')
         .optional()
-        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor'])
+        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor', 'Worker'])
         .withMessage('فلتر الدور غير صحيح'),
 
     query('status')
@@ -265,6 +284,11 @@ const validateGetEmployees = [
         .optional()
         .isMongoId()
         .withMessage('معرف البلد غير صحيح'),
+
+    query('hotelId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف الفندق غير صحيح'),
 
     query('search')
         .optional()
@@ -278,7 +302,7 @@ const validateGetEmployees = [
 const validateGetEmployeeNames = [
     query('role')
         .optional()
-        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor'])
+        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor', 'Worker'])
         .withMessage('فلتر الدور غير صحيح'),
 
     query('status')
@@ -290,6 +314,11 @@ const validateGetEmployeeNames = [
         .optional()
         .isMongoId()
         .withMessage('معرف البلد غير صحيح'),
+
+    query('hotelId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف الفندق غير صحيح'),
 
     handleValidationErrors
 ];
@@ -311,6 +340,31 @@ const validateModifyMyProfile = [
     handleValidationErrors
 ];
 
+// التحقق من صحة معاملات جلب أسماء الموظفين فقط
+const validateGetEmployeeNamesOnly = [
+    query('role')
+        .optional()
+        .isIn(['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor', 'Worker'])
+        .withMessage('فلتر الدور غير صحيح'),
+
+    query('status')
+        .optional()
+        .isIn(['Active', 'Inactive', 'Suspended', 'OnLeave'])
+        .withMessage('فلتر الحالة غير صحيح'),
+
+    query('countryId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف البلد غير صحيح'),
+
+    query('hotelId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف الفندق غير صحيح'),
+
+    handleValidationErrors
+];
+
 module.exports = {
     validateCreateEmployee,
     validateUpdateEmployee,
@@ -321,6 +375,7 @@ module.exports = {
     validateEmployeeId,
     validateGetEmployees,
     validateGetEmployeeNames,
+    validateGetEmployeeNamesOnly,
     validateModifyMyProfile,
     handleValidationErrors
 };

@@ -7,6 +7,7 @@ const path = require('path');
 const {
     getAllEmployees,
     getAllNames,
+    getEmployeeNamesOnly,
     getEmployeeById,
     createEmployee,
     updateEmployee,
@@ -36,6 +37,7 @@ const {
     validateEmployeeId,
     validateGetEmployees,
     validateGetEmployeeNames,
+    validateGetEmployeeNamesOnly,
     validateModifyMyProfile
 } = require('../../middelWare/employeeValidation');
 
@@ -126,6 +128,14 @@ router.get('/', adminAndAbove, validateGetEmployees, getAllEmployees);
 router.get('/names', managerAndAbove, validateGetEmployeeNames, getAllNames);
 
 /**
+ * @route   GET /api/admin/employees/GetAllNames
+ * @desc    جلب معرفات وأسماء الموظفين فقط
+ * @access  Admin and above
+ * @params  role?, status?, countryId?, hotelId?
+ */
+router.get('/GetAllNames', adminAndAbove, validateGetEmployeeNamesOnly, getEmployeeNamesOnly);
+
+/**
  * @route   GET /api/admin/employees/:id
  * @desc    جلب موظف واحد بالمعرف
  * @access  Admin and above
@@ -136,7 +146,7 @@ router.get('/:id', adminAndAbove, validateEmployeeId, getEmployeeById);
  * @route   POST /api/admin/employees
  * @desc    إنشاء موظف جديد
  * @access  Admin and above
- * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), password, role, countryId, status, permissions, notes, deviceToken
+ * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), password, role, countryId, hotelId, status, permissions, notes, taskDescription (optional), deviceToken
  */
 router.post('/', 
     adminAndAbove, 
@@ -149,7 +159,7 @@ router.post('/',
  * @route   PUT /api/admin/employees/:id
  * @desc    تحديث بيانات موظف
  * @access  Admin and above
- * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), role, countryId, status, permissions, notes, deviceToken, statusChangeReason
+ * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), role, countryId, hotelId, status, permissions, notes, taskDescription (optional), deviceToken, statusChangeReason
  */
 router.put('/:id', 
     adminAndAbove, 

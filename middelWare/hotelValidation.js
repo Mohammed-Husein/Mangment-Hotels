@@ -117,10 +117,7 @@ const validateUpdateHotel = [
         .isFloat({ min: -90, max: 90 })
         .withMessage('خط العرض يجب أن يكون بين -90 و 90'),
 
-    body('employeeId')
-        .optional()
-        .isMongoId()
-        .withMessage('معرف الموظف غير صحيح'),
+
 
     body('isActive')
         .optional()
@@ -202,6 +199,11 @@ const validateGetHotels = [
         .isMongoId()
         .withMessage('معرف المنطقة غير صحيح'),
 
+    query('employeeId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف الموظف غير صحيح'),
+
     handleValidationErrors
 ];
 
@@ -263,11 +265,32 @@ const validateGetHotelsForMobile = [
     handleValidationErrors
 ];
 
+// التحقق من صحة معاملات جلب أسماء الفنادق
+const validateGetHotelNames = [
+    query('countryId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف البلد غير صحيح'),
+
+    query('governorateId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف المحافظة غير صحيح'),
+
+    query('regionId')
+        .optional()
+        .isMongoId()
+        .withMessage('معرف المنطقة غير صحيح'),
+
+    handleValidationErrors
+];
+
 module.exports = {
     validateAddHotel,
     validateUpdateHotel,
     validateChangeHotelStatus,
     validateHotelId,
     validateGetHotels,
-    validateGetHotelsForMobile
+    validateGetHotelsForMobile,
+    validateGetHotelNames
 };

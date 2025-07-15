@@ -19,7 +19,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 /**
  * @desc    جلب جميع الفنادق مع الباجينيشن والفلترة (Admin)
  * @route   GET /api/admin/hotels
- * @access  Manager and above
+ * @access  Admin and above
  */
 const getAllHotels = catchAsync(async (req, res) => {
     const options = extractPaginationParams(req);
@@ -53,6 +53,11 @@ const getAllHotels = catchAsync(async (req, res) => {
     // فلترة حسب المنطقة
     if (req.query.regionId) {
         query.region = req.query.regionId;
+    }
+
+    // فلترة حسب الموظف المنشئ
+    if (req.query.employeeId) {
+        query.createdByEmployee = req.query.employeeId;
     }
 
     // إضافة populate للبيانات المرتبطة
@@ -107,6 +112,48 @@ const getAllHotels = catchAsync(async (req, res) => {
 });
 
 /**
+ * @desc    جلب أسماء ومعرفات جميع الفنادق
+ * @route   GET /api/admin/hotels/GetAllNames
+ * @access  Admin and above
+ */
+const getAllHotelNames = catchAsync(async (req, res) => {
+    let query = { isActive: true }; // فقط الفنادق النشطة
+
+    // فلترة حسب البلد
+    if (req.query.countryId) {
+        query.country = req.query.countryId;
+    }
+
+    // فلترة حسب المحافظة
+    if (req.query.governorateId) {
+        query.governorate = req.query.governorateId;
+    }
+
+    // فلترة حسب المنطقة
+    if (req.query.regionId) {
+        query.region = req.query.regionId;
+    }
+
+    const hotels = await Hotel.find(query)
+        .select('_id name')
+        .sort({ 'name.ar': 1 });
+
+    const formattedHotels = hotels.map(hotel => ({
+        id: hotel._id,
+        name: hotel.name?.ar || hotel.name?.en || 'غير محدد'
+    }));
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم جلب أسماء الفنادق بنجاح',
+        data: {
+            count: formattedHotels.length,
+            hotels: formattedHotels
+        }
+    });
+});
+
+/**
  * @desc    إضافة فندق جديد
  * @route   POST /api/admin/hotels
  * @access  Admin and above
@@ -118,7 +165,6 @@ const addHotel = catchAsync(async (req, res) => {
         countryId,
         governorateId,
         regionId,  // استخدام regionId بدلاً من cityId
-        employeeId,
         isActive
     } = req.body;
 
@@ -175,12 +221,7 @@ const addHotel = catchAsync(async (req, res) => {
         throw new AppError('المنطقة المحددة غير موجودة', 400);
     }
 
-    // التحقق من صحة الموظف
-    const Employee = require('../models/employee.model');
-    const employee = await Employee.findById(employeeId);
-    if (!employee) {
-        throw new AppError('الموظف المحدد غير موجود', 400);
-    }
+
 
     // إنشاء بيانات الفندق الجديد
     const newHotelData = {
@@ -192,7 +233,7 @@ const addHotel = catchAsync(async (req, res) => {
         governorate: governorateId,
         region: regionId,
         isActive: isActive !== undefined ? isActive : true,
-        createdByEmployee: employeeId
+        createdByEmployee: req.decoded?.id // استخدام معرف الموظف المسجل دخوله
     };
 
     // إضافة الموقع الجغرافي إذا تم تحديده
@@ -231,7 +272,7 @@ const addHotel = catchAsync(async (req, res) => {
 /**
  * @desc    جلب فندق واحد بالمعرف
  * @route   GET /api/admin/hotels/:id
- * @access  Manager and above
+ * @access  Admin and above
  */
 const getHotelById = catchAsync(async (req, res) => {
     const { id } = req.params;
@@ -293,7 +334,6 @@ const updateHotel = catchAsync(async (req, res) => {
         countryId,
         governorateId,
         cityId,
-        employeeId,
         isActive
     } = req.body;
 
@@ -370,14 +410,7 @@ const updateHotel = catchAsync(async (req, res) => {
     }
 
     // تحديث معرف الموظف المحدث
-    if (employeeId) {
-        const Employee = require('../models/employee.model');
-        const employee = await Employee.findById(employeeId);
-        if (!employee) {
-            throw new AppError('الموظف المحدد غير موجود', 400);
-        }
-        updateData.updatedByEmployee = employeeId;
-    }
+    updateData.updatedByEmployee = req.decoded?.id;
 
     const updatedHotel = await Hotel.findByIdAndUpdate(
         id,
@@ -639,6 +672,7 @@ const getHotelByIdForMobile = catchAsync(async (req, res) => {
 // });
 module.exports = {
     getAllHotels,
+    getAllHotelNames,
     addHotel,
     getHotelById,
     updateHotel,

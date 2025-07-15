@@ -111,6 +111,11 @@ const getAllEmployees = catchAsync(async (req, res) => {
     if (req.query.countryId) {
         query.countryId = req.query.countryId;
     }
+
+    // فلترة حسب الفندق
+    if (req.query.hotelId) {
+        query.hotelId = req.query.hotelId;
+    }
     
     // فلترة حسب تاريخ التوظيف
     if (req.query.hireDateFrom || req.query.hireDateTo) {
@@ -123,11 +128,17 @@ const getAllEmployees = catchAsync(async (req, res) => {
         }
     }
     
-    // إضافة populate للبلد
-    options.populate = {
-        path: 'countryId',
-        select: 'name code'
-    };
+    // إضافة populate للبلد والفندق
+    options.populate = [
+        {
+            path: 'countryId',
+            select: 'name code'
+        },
+        {
+            path: 'hotelId',
+            select: 'name'
+        }
+    ];
     
     const result = await paginate(Employee, query, options);
     
@@ -138,8 +149,10 @@ const getAllEmployees = catchAsync(async (req, res) => {
         fullName: employee.fullName,
         email: employee.email,
         phoneNumber: employee.phoneNumber,
-        countryName: employee.countryId ? 
+        countryName: employee.countryId ?
             (employee.countryId.name?.ar || employee.countryId.name?.en || 'غير محدد') : 'غير محدد',
+        hotelName: employee.hotelId ?
+            (employee.hotelId.name?.ar || employee.hotelId.name?.en || 'غير محدد') : 'غير محدد',
         imageUrl: employee.imageUrl,
         roleName: employee.role,
         lastSeen: employee.lastSeen,
@@ -177,17 +190,70 @@ const getAllNames = catchAsync(async (req, res) => {
     if (req.query.countryId) {
         query.countryId = req.query.countryId;
     }
-    
+
+    // فلترة حسب الفندق
+    if (req.query.hotelId) {
+        query.hotelId = req.query.hotelId;
+    }
+
     const employees = await Employee.find(query)
-        .select('_id fullName role')
+        .select('_id fullName role hotelId')
+        .populate('hotelId', 'name')
         .sort({ fullName: 1 });
-    
+
     const formattedEmployees = employees.map(employee => ({
         id: employee._id,
         name: employee.fullName,
-        role: employee.role
+        role: employee.role,
+        hotelName: employee.hotelId ?
+            (employee.hotelId.name?.ar || employee.hotelId.name?.en || 'غير محدد') : 'غير محدد'
     }));
     
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم جلب أسماء الموظفين بنجاح',
+        data: {
+            count: formattedEmployees.length,
+            employees: formattedEmployees
+        }
+    });
+});
+
+/**
+ * @desc    جلب أسماء ومعرفات الموظفين فقط
+ * @route   GET /api/admin/employees/GetAllNames
+ * @access  Admin, SuperAdmin
+ */
+const getEmployeeNamesOnly = catchAsync(async (req, res) => {
+    let query = {};
+
+    // فلترة حسب الدور
+    if (req.query.role) {
+        query.role = req.query.role;
+    }
+
+    // فلترة حسب الحالة (افتراضياً النشطين فقط)
+    query.status = req.query.status || 'Active';
+
+    // فلترة حسب البلد
+    if (req.query.countryId) {
+        query.countryId = req.query.countryId;
+    }
+
+    // فلترة حسب الفندق
+    if (req.query.hotelId) {
+        query.hotelId = req.query.hotelId;
+    }
+
+    const employees = await Employee.find(query)
+        .select('_id fullName')
+        .sort({ fullName: 1 });
+
+    const formattedEmployees = employees.map(employee => ({
+        id: employee._id,
+        name: employee.fullName
+    }));
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم جلب أسماء الموظفين بنجاح',
@@ -208,6 +274,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
 
     const employee = await Employee.findById(id)
         .populate('countryId', 'name code')
+        .populate('hotelId', 'name')
         .populate('createdBy', 'fullName')
         .populate('statusChangedBy', 'fullName');
 
@@ -257,6 +324,9 @@ const getEmployeeById = catchAsync(async (req, res) => {
         countryId: employee.countryId?._id,
         countryName: employee.countryId ?
             (employee.countryId.name?.ar || employee.countryId.name?.en) : null,
+        hotelId: employee.hotelId?._id,
+        hotelName: employee.hotelId ?
+            (employee.hotelId.name?.ar || employee.hotelId.name?.en) : null,
         cityId: cityId, // إضافة معرف المحافظة
         governorateName: governorateName, // إضافة اسم المحافظة
         regionId: regionId, // إضافة معرف المنطقة
@@ -265,6 +335,7 @@ const getEmployeeById = catchAsync(async (req, res) => {
         lastSeen: employee.lastSeen,
         hireDate: employee.hireDate,
         notes: employee.notes,
+        taskDescription: employee.taskDescription,
         permissions: employee.permissions,
         createdBy: employee.createdBy?.fullName,
         statusChangeReason: employee.statusChangeReason,
@@ -295,9 +366,11 @@ const createEmployee = catchAsync(async (req, res) => {
         password,
         role,
         countryId,
+        hotelId,
         status,
         permissions,
         notes,
+        taskDescription,
         deviceToken
     } = req.body;
     
@@ -325,10 +398,12 @@ const createEmployee = catchAsync(async (req, res) => {
         password: hashedPassword,
         role,
         countryId,
+        hotelId,
         status: status || 'Active',
         imageUrl: req.file?.filename || 'uploads/Avatar.png',
         permissions: permissions || [],
         notes,
+        taskDescription,
         deviceToken,
         createdBy: req.decoded?.id // معرف الموظف الذي أنشأ الحساب
     });
@@ -337,7 +412,8 @@ const createEmployee = catchAsync(async (req, res) => {
     
     // جلب البيانات مع populate
     const populatedEmployee = await Employee.findById(newEmployee._id)
-        .populate('countryId', 'name code');
+        .populate('countryId', 'name code')
+        .populate('hotelId', 'name');
     
     res.status(201).json({
         status: httpStatusText.SUCCESS,
@@ -360,9 +436,11 @@ const updateEmployee = catchAsync(async (req, res) => {
         alternatePhoneNumber,
         role,
         countryId,
+        hotelId,
         status,
         permissions,
         notes,
+        taskDescription,
         deviceToken,
         statusChangeReason
     } = req.body;
@@ -413,8 +491,10 @@ const updateEmployee = catchAsync(async (req, res) => {
     if (alternatePhoneNumber !== undefined) updateData.alternatePhoneNumber = alternatePhoneNumber;
     if (role) updateData.role = role;
     if (countryId) updateData.countryId = countryId;
+    if (hotelId) updateData.hotelId = hotelId;
     if (permissions) updateData.permissions = permissions;
     if (notes !== undefined) updateData.notes = notes;
+    if (taskDescription !== undefined) updateData.taskDescription = taskDescription;
     if (deviceToken) updateData.deviceToken = deviceToken;
     if (req.file) updateData.imageUrl = req.file.filename;
 
@@ -432,7 +512,8 @@ const updateEmployee = catchAsync(async (req, res) => {
         id,
         updateData,
         { new: true, runValidators: true }
-    ).populate('countryId', 'name code');
+    ).populate('countryId', 'name code')
+     .populate('hotelId', 'name');
 
     res.status(200).json({
         status: httpStatusText.SUCCESS,
@@ -847,6 +928,7 @@ const modifyMyProfile = catchAsync(async (req, res) => {
 module.exports = {
     getAllEmployees,
     getAllNames,
+    getEmployeeNamesOnly,
     getEmployeeById,
     createEmployee,
     updateEmployee,

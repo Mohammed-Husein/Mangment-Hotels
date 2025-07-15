@@ -4,6 +4,7 @@ const router = express.Router();
 // استيراد controllers
 const {
     getAllHotels,
+    getAllHotelNames,
     addHotel,
     getHotelById,
     updateHotel,
@@ -23,7 +24,8 @@ const {
     validateUpdateHotel,
     validateChangeHotelStatus,
     validateHotelId,
-    validateGetHotels
+    validateGetHotels,
+    validateGetHotelNames
 } = require('../../middelWare/hotelValidation');
 
 // أدوار الموظفين
@@ -31,28 +33,35 @@ const employeeRoles = ['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Superv
 
 // middleware للتحقق من الصلاحيات
 const adminAndAbove = [verifyToken, allowedTo(employeeRoles[0], employeeRoles[1])]; // SuperAdmin, Admin
-const managerAndAbove = [verifyToken, allowedTo(employeeRoles[0], employeeRoles[1], employeeRoles[2])]; // SuperAdmin, Admin, Manager
 
 /**
  * @route   GET /api/admin/hotels
  * @desc    جلب جميع الفنادق مع الباجينيشن والفلترة
- * @access  Manager and above
- * @params  page, limit, sortBy, sortOrder, search, isActive, countryId, cityId, governorateId, regionId
+ * @access  Admin and above
+ * @params  page, limit, sortBy, sortOrder, search, isActive, countryId, cityId, governorateId, regionId, employeeId
  */
-router.get('/', managerAndAbove, validateGetHotels, getAllHotels);
+router.get('/', adminAndAbove, validateGetHotels, getAllHotels);
+
+/**
+ * @route   GET /api/admin/hotels/GetAllNames
+ * @desc    جلب أسماء ومعرفات جميع الفنادق فقط
+ * @access  Admin and above
+ * @params  countryId?, governorateId?, regionId?
+ */
+router.get('/GetAllNames', adminAndAbove, validateGetHotelNames, getAllHotelNames);
 
 /**
  * @route   GET /api/admin/hotels/:id
  * @desc    جلب فندق واحد بالمعرف
- * @access  Manager and above
+ * @access  Admin and above
  */
-router.get('/:id', managerAndAbove, validateHotelId, getHotelById);
+router.get('/:id', adminAndAbove, validateHotelId, getHotelById);
 
 /**
  * @route   POST /api/admin/hotels
  * @desc    إضافة فندق جديد
  * @access  Admin and above
- * @body    nameAr, nameEn?, status?, governorateId, regionId?, longitude?, latitude?, stars?, imagefile (file)
+ * @body    nameAr, nameEn?, countryId, governorateId, regionId, longitude?, latitude?, isActive?, imagefile (file)
  */
 router.post('/', adminAndAbove, uploadHotelImage, validateAddHotel, addHotel);
 
@@ -60,7 +69,7 @@ router.post('/', adminAndAbove, uploadHotelImage, validateAddHotel, addHotel);
  * @route   POST /api/admin/hotels/:id/update
  * @desc    تحديث بيانات الفندق
  * @access  Admin and above
- * @body    nameAr?, nameEn?, status?, governorateId?, regionId?, longitude?, latitude?, stars?, type?, imagefile? (file)
+ * @body    namear?, nameEn?, countryId?, governorateId?, cityId?, longitude?, latitude?, isActive?, imagefile? (file)
  */
 router.post('/:id/update', adminAndAbove, validateHotelId, uploadHotelImage, validateUpdateHotel, updateHotel);
 

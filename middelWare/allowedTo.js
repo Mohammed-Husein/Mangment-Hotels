@@ -13,7 +13,7 @@ module.exports = (...roles) => {
     const userType = req.decoded['user-type'] || 'User';
 
     // إذا كان المطلوب صلاحيات موظف ولكن المستخدم عادي
-    const employeeRoles = ['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor'];
+    const employeeRoles = ['SuperAdmin', 'Admin', 'Manager', 'Receptionist', 'Supervisor', 'Worker'];
     const isEmployeeRole = roles.some(role => employeeRoles.includes(role));
 
     if (isEmployeeRole && userType !== 'Employee') {

@@ -8,7 +8,8 @@ const employeeRoles = {
     ADMIN: 'Admin',
     MANAGER: 'Manager',
     RECEPTIONIST: 'Receptionist',
-    SUPERVISOR: 'Supervisor'
+    SUPERVISOR: 'Supervisor',
+    WORKER: 'Worker'
 };
 
 // حالات الموظف
@@ -111,6 +112,21 @@ const employeeSchema = new mongoose.Schema({
         }
     },
 
+    // معرف الفندق الذي يعمل به الموظف
+    hotelId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Hotel',
+        required: [true, 'الفندق مطلوب'],
+        validate: {
+            validator: async function(hotelId) {
+                const Hotel = mongoose.model('Hotel');
+                const hotel = await Hotel.findById(hotelId);
+                return !!hotel;
+            },
+            message: 'الفندق المحدد غير موجود'
+        }
+    },
+
     // حالة الموظف
     status: {
         type: String,
@@ -153,6 +169,13 @@ const employeeSchema = new mongoose.Schema({
         maxlength: [500, 'الملاحظات يجب أن لا تتجاوز 500 حرف']
     },
 
+    // وصف مهام الموظف
+    taskDescription: {
+        type: String,
+        maxlength: [1000, 'وصف المهام يجب أن لا يتجاوز 1000 حرف'],
+        trim: true
+    },
+
     // معلومات تغيير الحالة
     statusChangeReason: String,
     statusChangedAt: Date,
@@ -192,12 +215,21 @@ employeeSchema.index({ phoneNumber: 1 });
 employeeSchema.index({ role: 1 });
 employeeSchema.index({ status: 1 });
 employeeSchema.index({ countryId: 1 });
+employeeSchema.index({ hotelId: 1 });
 employeeSchema.index({ fullName: 'text', email: 'text' });
 
 // Virtual للحصول على اسم البلد
 employeeSchema.virtual('countryName', {
     ref: 'Country',
     localField: 'countryId',
+    foreignField: '_id',
+    justOne: true
+});
+
+// Virtual للحصول على اسم الفندق
+employeeSchema.virtual('hotelName', {
+    ref: 'Hotel',
+    localField: 'hotelId',
     foreignField: '_id',
     justOne: true
 });
@@ -232,6 +264,21 @@ employeeSchema.pre('save', async function(next) {
         }
         if (!country.isActive) {
             return next(new Error('البلد المحدد غير نشط'));
+        }
+    }
+    next();
+});
+
+// Middleware للتحقق من وجود الفندق قبل الحفظ
+employeeSchema.pre('save', async function(next) {
+    if (this.isModified('hotelId')) {
+        const Hotel = mongoose.model('Hotel');
+        const hotel = await Hotel.findById(this.hotelId);
+        if (!hotel) {
+            return next(new Error('الفندق المحدد غير موجود'));
+        }
+        if (!hotel.isActive) {
+            return next(new Error('الفندق المحدد غير نشط'));
         }
     }
     next();
