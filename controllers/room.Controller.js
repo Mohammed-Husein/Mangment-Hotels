@@ -458,7 +458,7 @@ const getRoomById = catchAsync(async (req, res) => {
 
 /**
  * @desc    تحديث غرفة
- * @route   PUT /api/admin/rooms/:id
+ * @route   POST /api/admin/rooms/:id
  * @access  Admin and above
  */
 const updateRoom = catchAsync(async (req, res) => {
@@ -470,7 +470,8 @@ const updateRoom = catchAsync(async (req, res) => {
         price,
         description,
         services,
-        bedsCount
+        bedsCount,
+        deleteImages
     } = req.body;
 
     const room = await Room.findById(id);
@@ -492,7 +493,7 @@ const updateRoom = catchAsync(async (req, res) => {
 
     if (type) updateData.type = type;
     if (price) updateData.price = parseFloat(price);
-    if (description) updateData.description = description;
+    if (description !== undefined) updateData.description = description;
     if (bedsCount) updateData.bedsCount = parseInt(bedsCount);
 
     // تحديث الخدمات الإضافية
@@ -522,11 +523,46 @@ const updateRoom = catchAsync(async (req, res) => {
         }
     }
 
+    // معالجة حذف الصور المحددة
+    let currentImages = room.images || [];
+
+    if (deleteImages) {
+        let imagesToDelete = [];
+
+        // تحويل deleteImages إلى array إذا كان string
+        if (typeof deleteImages === 'string') {
+            try {
+                imagesToDelete = JSON.parse(deleteImages);
+            } catch (error) {
+                // إذا فشل التحليل، نتجاهل العملية
+                imagesToDelete = [];
+            }
+        } else if (Array.isArray(deleteImages)) {
+            imagesToDelete = deleteImages;
+        }
+
+        if (imagesToDelete.length > 0) {
+            // حذف الصور المحددة من النظام
+            const { deleteOldFiles } = require('../middelWare/roomUploadMiddleware');
+            deleteOldFiles(imagesToDelete);
+
+            // إزالة الصور المحذوفة من قائمة الصور الحالية
+            currentImages = currentImages.filter(image => !imagesToDelete.includes(image));
+        }
+    }
+
     // تحديث الصور إذا تم رفع صور جديدة
     if (req.files && req.files.length > 0) {
-        updateData.roomImages = req.files.map(file => `uploads/rooms/${file.filename}`);
+        // إضافة الصور الجديدة إلى الصور الحالية (بعد حذف المحددة)
+        const newImages = req.files.map(file => `uploads/rooms/${file.filename}`);
+        updateData.images = [...currentImages, ...newImages];
     } else if (req.file) {
-        updateData.roomImages = [`uploads/rooms/${req.file.filename}`];
+        // إضافة الصورة الجديدة إلى الصور الحالية (بعد حذف المحددة)
+        const newImage = `uploads/rooms/${req.file.filename}`;
+        updateData.images = [...currentImages, newImage];
+    } else if (deleteImages) {
+        // إذا تم حذف صور فقط بدون إضافة جديدة
+        updateData.images = currentImages;
     }
 
     const updatedRoom = await Room.findByIdAndUpdate(

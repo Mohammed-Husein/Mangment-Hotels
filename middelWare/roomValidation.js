@@ -62,17 +62,29 @@ const validateAddRoom = [
         .withMessage('معرف الفندق مطلوب')
         .isMongoId()
         .withMessage('معرف الفندق غير صحيح'),
-    
+
+    body('price')
+        .notEmpty()
+        .withMessage('سعر الغرفة مطلوب')
+        .isFloat({ min: 0 })
+        .withMessage('سعر الغرفة يجب أن يكون رقم موجب'),
+
+    body('description')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('وصف الغرفة يجب أن لا يتجاوز 1000 حرف')
+        .trim(),
+
     body('bookedFrom')
         .optional()
         .isISO8601()
         .withMessage('تاريخ بداية الحجز غير صحيح'),
-    
+
     body('bookedTo')
         .optional()
         .isISO8601()
         .withMessage('تاريخ نهاية الحجز غير صحيح'),
-    
+
     body('bookingNote')
         .optional()
         .isLength({ max: 500 })
@@ -116,17 +128,50 @@ const validateUpdateRoom = [
         .optional()
         .isInt({ min: 1, max: 10 })
         .withMessage('عدد الأسرة يجب أن يكون بين 1 و 10'),
-    
+
+    body('price')
+        .optional()
+        .isFloat({ min: 0 })
+        .withMessage('سعر الغرفة يجب أن يكون رقم موجب'),
+
+    body('description')
+        .optional()
+        .isLength({ max: 1000 })
+        .withMessage('وصف الغرفة يجب أن لا يتجاوز 1000 حرف')
+        .trim(),
+
+    body('deleteImages')
+        .optional()
+        .custom((value) => {
+            // إذا كان string، نحاول تحويله إلى array
+            if (typeof value === 'string') {
+                try {
+                    const parsed = JSON.parse(value);
+                    if (!Array.isArray(parsed)) {
+                        throw new Error('deleteImages يجب أن يكون مصفوفة من مسارات الصور');
+                    }
+                    return true;
+                } catch (error) {
+                    throw new Error('deleteImages يجب أن يكون مصفوفة صحيحة من مسارات الصور');
+                }
+            }
+            // إذا كان array بالفعل
+            if (Array.isArray(value)) {
+                return true;
+            }
+            throw new Error('deleteImages يجب أن يكون مصفوفة من مسارات الصور');
+        }),
+
     body('bookedFrom')
         .optional()
         .isISO8601()
         .withMessage('تاريخ بداية الحجز غير صحيح'),
-    
+
     body('bookedTo')
         .optional()
         .isISO8601()
         .withMessage('تاريخ نهاية الحجز غير صحيح'),
-    
+
     body('bookingNote')
         .optional()
         .isLength({ max: 500 })

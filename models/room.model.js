@@ -62,6 +62,14 @@ const roomSchema = new mongoose.Schema({
         min: [0, 'السعر لا يمكن أن يكون سالب']
     },
 
+    // وصف الغرفة (اختياري)
+    description: {
+        type: String,
+        trim: true,
+        maxlength: [1000, 'وصف الغرفة يجب أن لا يتجاوز 1000 حرف'],
+        default: ''
+    },
+
 
     // صور الغرفة
     images: [{

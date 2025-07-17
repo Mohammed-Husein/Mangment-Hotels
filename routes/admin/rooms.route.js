@@ -66,10 +66,10 @@ router.get('/:id', managerAndAbove, validateRoomId, getRoomById);
 router.post('/', adminAndAbove, uploadRoomImages, validateAddRoom, addRoom);
 
 /**
- * @route   PUT /api/admin/rooms/:id
+ * @route   POST /api/admin/rooms/:id
  * @desc    تحديث بيانات الغرفة
  * @access  Admin and above
- * @body    nameAr?, nameEn?, numberRoom?, status?, type?, bedsCount?, bookedFrom?, bookedTo?, bookingNote?, services?, roomImages[]? (files)
+ * @body    nameAr?, nameEn?, type?, price?, description?, bedsCount?, services?, roomImages[]? (files), deleteImages[]? (array of image paths to delete)
  */
 router.post('/:id', adminAndAbove, validateRoomId, uploadRoomImages, validateUpdateRoom, updateRoom);
 
