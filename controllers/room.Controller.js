@@ -417,8 +417,7 @@ const getRoomById = catchAsync(async (req, res) => {
         bedsCount: room.bedsCount || 1,
         status: room.status,
         pricePerNight: room.price || 0,
-        hotelId:  room.hotel?._id,
-      
+        hotelId: room.hotel?._id,
         isBooked: activeBooking ? true : false,
         currentBooking: activeBooking ? {
             customerName: activeBooking.customer?.fullName || null,
