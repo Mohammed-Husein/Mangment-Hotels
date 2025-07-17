@@ -42,7 +42,7 @@ const roomSchema = new mongoose.Schema({
         type: String,
         required: [true, 'رقم الغرفة مطلوب'],
         trim: true,
-        maxlength: [10, 'رقم الغرفة يجب أن لا يتجاوز 10 أحرف']
+        maxlength: [50, 'رقم الغرفة يجب أن لا يتجاوز 50 حرف']
     },
     
 
@@ -124,7 +124,7 @@ roomSchema.index({ hotel: 1 });
 roomSchema.index({ type: 1 });
 roomSchema.index({ status: 1 });
 roomSchema.index({ isAvailableForBooking: 1 });
-roomSchema.index({ hotel: 1, numberRoom: 1 }, { unique: true }); // منع تكرار رقم الغرفة في نفس الفندق
+// تم إزالة الفهرس الفريد لرقم الغرفة للسماح بالتكرار
 
 roomSchema.index({ 'name.ar': 'text', 'name.en': 'text' });
 

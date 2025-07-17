@@ -36,10 +36,9 @@ const validateAddRoom = [
         .trim(),
     
     body('numberRoom')
-        .notEmpty()
-        .withMessage('رقم الغرفة مطلوب')
-        .isLength({ max: 10 })
-        .withMessage('رقم الغرفة يجب أن لا يتجاوز 10 أحرف')
+        .optional()
+        .isLength({ max: 50 })
+        .withMessage('رقم الغرفة يجب أن لا يتجاوز 50 حرف')
         .trim(),
     
     body('status')
@@ -99,13 +98,13 @@ const validateUpdateRoom = [
     
     body('numberRoom')
         .optional()
-        .isLength({ max: 10 })
-        .withMessage('رقم الغرفة يجب أن لا يتجاوز 10 أحرف')
+        .isLength({ max: 50 })
+        .withMessage('رقم الغرفة يجب أن لا يتجاوز 50 حرف')
         .trim(),
     
     body('status')
         .optional()
-        .isIn(['متاحة', 'محجوزة', 'معطلة'])
+        .isIn(['Available', 'Reserved', 'Inactive'])
         .withMessage('حالة الغرفة غير صحيحة'),
     
     body('type')

@@ -19,6 +19,7 @@ const addRoom = catchAsync(async (req, res) => {
         description,
         services,
         numberRoom,
+        bedsCount
     } = req.body;
 
     // التحقق من الحقول المطلوبة
@@ -48,6 +49,30 @@ const addRoom = catchAsync(async (req, res) => {
         throw new AppError('الفندق المحدد غير موجود', 404);
     }
 
+    // توليد رقم غرفة تلقائي إذا لم يتم إدخاله
+    let roomNumber = numberRoom;
+    if (!roomNumber) {
+        const date = new Date();
+        const year = date.getFullYear().toString().slice(-2);
+        const month = (date.getMonth() + 1).toString().padStart(2, '0');
+        const day = date.getDate().toString().padStart(2, '0');
+
+        // البحث عن آخر غرفة في نفس اليوم
+        const lastRoom = await Room.findOne(
+            { numberRoom: new RegExp(`^ROOM-${year}${month}${day}`) },
+            { numberRoom: 1 },
+            { sort: { numberRoom: -1 } }
+        );
+
+        let sequence = 1;
+        if (lastRoom?.numberRoom) {
+            const lastSeq = parseInt(lastRoom.numberRoom.slice(-4)) || 0;
+            sequence = lastSeq < 9999 ? lastSeq + 1 : 1;
+        }
+
+        roomNumber = `ROOM-${year}${month}${day}-${sequence.toString().padStart(4, '0')}`;
+    }
+
     // إنشاء بيانات الغرفة الجديدة
     const newRoomData = {
         name: {
@@ -57,9 +82,9 @@ const addRoom = catchAsync(async (req, res) => {
         hotel: hotelId,
         type,
         price: parseFloat(price),
-        // numberRoom: `${type}-${Date.now()}`, // توليد رقم غرفة تلقائي
         status: 'Available',
-        numberRoom:numberRoom,
+        numberRoom: roomNumber,
+        bedsCount: bedsCount ? parseInt(bedsCount) : 1
     };
 
     // إضافة الوصف إذا تم تحديده
@@ -199,6 +224,7 @@ const getAllRooms = catchAsync(async (req, res) => {
         hotelName: room.hotel?.name?.ar || room.hotel?.name?.en || 'غير محدد',
         type: room.type,
         numberRoom: room.numberRoom,
+        bedsCount: room.bedsCount || 1,
         isBooked: room.activeBooking ? true : false,
         currentBooking: room.activeBooking ? {
             customerName: room.activeBooking.customerName,
@@ -216,6 +242,7 @@ const getAllRooms = catchAsync(async (req, res) => {
         pricePerNight: room.price || 0,
         images: room.images || [],
         services: room.services ? Object.fromEntries(room.services) : {},
+        description: room.description || '',
         createdAt: room.createdAt,
         updatedAt: room.updatedAt
     }));
@@ -310,6 +337,7 @@ const getRoomsByHotelId = catchAsync(async (req, res) => {
         nameEn: room.name?.en,
         numberRoom: room.numberRoom,
         type: room.type,
+        bedsCount: room.bedsCount || 1,
         isBooked: room.activeBooking ? true : false,
         currentBooking: room.activeBooking ? {
             customerName: room.activeBooking.customerName,
@@ -326,7 +354,8 @@ const getRoomsByHotelId = catchAsync(async (req, res) => {
         })) || [],
         pricePerNight: room.price || 0,
         images: room.images,
-        services: room.services ? Object.fromEntries(room.services) : {}
+        services: room.services ? Object.fromEntries(room.services) : {},
+        description: room.description || ''
     }));
 
     res.status(200).json({
@@ -385,11 +414,11 @@ const getRoomById = catchAsync(async (req, res) => {
         nameEn: room.name?.en,
         numberRoom: room.numberRoom,
         type: room.type,
+        bedsCount: room.bedsCount || 1,
+        status: room.status,
         pricePerNight: room.price || 0,
-        hotel: {
-            id: room.hotel?._id,
-            name: room.hotel?.name
-        },
+        hotelId:  room.hotel?._id,
+      
         isBooked: activeBooking ? true : false,
         currentBooking: activeBooking ? {
             customerName: activeBooking.customer?.fullName || null,
@@ -441,7 +470,8 @@ const updateRoom = catchAsync(async (req, res) => {
         type,
         price,
         description,
-        services
+        services,
+        bedsCount
     } = req.body;
 
     const room = await Room.findById(id);
@@ -464,6 +494,7 @@ const updateRoom = catchAsync(async (req, res) => {
     if (type) updateData.type = type;
     if (price) updateData.price = parseFloat(price);
     if (description) updateData.description = description;
+    if (bedsCount) updateData.bedsCount = parseInt(bedsCount);
 
     // تحديث الخدمات الإضافية
     if (services) {
@@ -618,6 +649,7 @@ const getRoomsByHotelIdForMobile = catchAsync(async (req, res) => {
         nameEn: room.name?.en,
         numberRoom: room.numberRoom,
         type: room.type,
+        bedsCount: room.bedsCount || 1,
         isBooked: room.activeBooking ? true : false,
         currentBooking: room.activeBooking ? {
             customerName: room.activeBooking.customerName,
@@ -633,7 +665,8 @@ const getRoomsByHotelIdForMobile = catchAsync(async (req, res) => {
         })) || [],
         pricePerNight: room.price || 0,
         images: room.images,
-        services: room.services ? Object.fromEntries(room.services) : {}
+        services: room.services ? Object.fromEntries(room.services) : {},
+        description: room.description || ''
     }));
 
     res.status(200).json({
@@ -694,6 +727,7 @@ const getRoomByIdForMobile = catchAsync(async (req, res) => {
         nameEn: room.name?.en,
         numberRoom: room.numberRoom,
         type: room.type,
+        bedsCount: room.bedsCount || 1,
         isBooked: activeBooking ? true : false,
         currentBooking: activeBooking ? {
             customerName: activeBooking.customer?.fullName || null,
