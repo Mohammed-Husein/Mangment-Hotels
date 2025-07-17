@@ -524,9 +524,9 @@ const updateRoom = catchAsync(async (req, res) => {
 
     // تحديث الصور إذا تم رفع صور جديدة
     if (req.files && req.files.length > 0) {
-        updateData.images = req.files.map(file => `uploads/rooms/${file.filename}`);
+        updateData.roomImages = req.files.map(file => `uploads/rooms/${file.filename}`);
     } else if (req.file) {
-        updateData.images = [`uploads/rooms/${req.file.filename}`];
+        updateData.roomImages = [`uploads/rooms/${req.file.filename}`];
     }
 
     const updatedRoom = await Room.findByIdAndUpdate(

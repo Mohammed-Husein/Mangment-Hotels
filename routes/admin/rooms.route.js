@@ -71,7 +71,7 @@ router.post('/', adminAndAbove, uploadRoomImages, validateAddRoom, addRoom);
  * @access  Admin and above
  * @body    nameAr?, nameEn?, numberRoom?, status?, type?, bedsCount?, bookedFrom?, bookedTo?, bookingNote?, services?, roomImages[]? (files)
  */
-router.put('/:id', adminAndAbove, validateRoomId, uploadRoomImages, validateUpdateRoom, updateRoom);
+router.post('/:id', adminAndAbove, validateRoomId, uploadRoomImages, validateUpdateRoom, updateRoom);
 
 /**
  * @route   DELETE /api/admin/rooms/:id
