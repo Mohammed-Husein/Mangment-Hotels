@@ -66,21 +66,19 @@ router.get('/:id', adminAndAbove, validateHotelId, getHotelById);
 router.post('/', adminAndAbove, uploadHotelImage, validateAddHotel, addHotel);
 
 /**
- * @route   POST /api/admin/hotels/:id/update
+ * @route   POST /api/admin/hotels/update/:id
  * @desc    تحديث بيانات الفندق
  * @access  Admin and above
- * @body    namear?, nameEn?, countryId?, governorateId?, cityId?, longitude?, latitude?, isActive?, imagefile? (file)
+ * @body    namear?, nameEn?, countryId?, governorateId?, cityId?, regionId?, longitude?, latitude?, isActive?, imagefile? (file), deleteImage? (string)
  */
-router.post('/:id/update', adminAndAbove, validateHotelId, uploadHotelImage, validateUpdateHotel, updateHotel);
+router.post('/update/:id', adminAndAbove, validateHotelId, uploadHotelImage, validateUpdateHotel, updateHotel);
 
 /**
- * @route   PATCH /api/admin/hotels/:id/status
- * @desc    تغيير حالة الفندق
+ * @route   DELETE /api/admin/hotels/:id
+ * @desc    حذف فندق
  * @access  Admin and above
- * @body    status
  */
-// router.patch('/:id', adminAndAbove, validateHotelId, validateChangeHotelStatus, changeHotelStatus);
-router.delete('/:id', adminAndAbove,  deleteHotel);
+router.delete('/:id', adminAndAbove, validateHotelId, deleteHotel);
 
 // إصلاح مسارات الصور المكررة
 router.post('/fix-images', adminAndAbove, async (req, res) => {

@@ -280,6 +280,7 @@ const getHotelById = catchAsync(async (req, res) => {
     const hotel = await Hotel.findById(id)
         .populate('country', 'name')
         .populate('governorate', 'name')
+        .populate('region', 'name')
         .populate('createdByEmployee', 'fullName')
         .populate('updatedByEmployee', 'fullName');
 
@@ -299,6 +300,8 @@ const getHotelById = catchAsync(async (req, res) => {
         countryName: hotel.country?.name?.ar || hotel.country?.name?.en || 'غير محدد',
         governorateId: hotel.governorate?._id,
         governorateName: hotel.governorate?.name?.ar || hotel.governorate?.name?.en || 'غير محدد',
+        regionId: hotel.region?._id,
+        regionName: hotel.region?.name?.ar || hotel.region?.name?.en || 'غير محدد',
         cityId: hotel.governorate?._id,
         cityName: hotel.governorate?.name?.ar || hotel.governorate?.name?.en || 'غير محدد',
         location: hotel.location?.coordinates ? {
@@ -334,7 +337,9 @@ const updateHotel = catchAsync(async (req, res) => {
         countryId,
         governorateId,
         cityId,
-        isActive
+        regionId,
+        isActive,
+        deleteImage
     } = req.body;
 
     // استخراج إحداثيات الموقع إذا تم إرسالها
@@ -396,6 +401,15 @@ const updateHotel = catchAsync(async (req, res) => {
         updateData.governorate = governorateId || cityId;
     }
 
+    if (regionId) {
+        const Region = require('../models/region.model');
+        const region = await Region.findById(regionId);
+        if (!region) {
+            throw new AppError('المنطقة المحددة غير موجودة', 400);
+        }
+        updateData.region = regionId;
+    }
+
     // تحديث الموقع الجغرافي
     if (location && location.longitude && location.latitude) {
         updateData.location = {
@@ -404,9 +418,32 @@ const updateHotel = catchAsync(async (req, res) => {
         };
     }
 
+    // معالجة حذف الصورة المحددة
+    let currentImages = hotel.images || [];
+
+    if (deleteImage) {
+        // حذف الصورة المحددة من النظام
+        const { deleteOldFiles } = require('../middelWare/hotelUploadMiddleware');
+        deleteOldFiles([deleteImage]);
+
+        // إزالة الصورة المحذوفة من قائمة الصور الحالية
+        currentImages = currentImages.filter(image => image !== deleteImage);
+    }
+
     // تحديث الصورة إذا تم رفع صورة جديدة
     if (req.file) {
+        // إذا كان هناك صور حالية وتم رفع صورة جديدة، نحذف القديمة ونضع الجديدة
+        if (currentImages.length > 0 && !deleteImage) {
+            const { deleteOldFiles } = require('../middelWare/hotelUploadMiddleware');
+            deleteOldFiles(currentImages);
+        }
         updateData.images = [req.file.filename];
+    } else if (deleteImage && currentImages.length === 0) {
+        // إذا تم حذف الصورة الوحيدة ولم يتم رفع جديدة
+        updateData.images = [];
+    } else if (deleteImage) {
+        // إذا تم حذف صورة معينة فقط
+        updateData.images = currentImages;
     }
 
     // تحديث معرف الموظف المحدث
@@ -418,6 +455,7 @@ const updateHotel = catchAsync(async (req, res) => {
         { new: true, runValidators: true }
     ).populate('country', 'name')
      .populate('governorate', 'name')
+     .populate('region', 'name')
      .populate('createdByEmployee', 'fullName')
      .populate('updatedByEmployee', 'fullName');
 

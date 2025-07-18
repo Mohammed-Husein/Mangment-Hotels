@@ -105,8 +105,27 @@ const deleteOldFile = (filePath) => {
     }
 };
 
+// دالة لحذف الملفات القديمة (مصفوفة)
+const deleteOldFiles = (filePaths) => {
+    if (Array.isArray(filePaths)) {
+        filePaths.forEach(filePath => {
+            if (filePath && !filePath.includes('default')) {
+                const fullPath = path.join(__dirname, '../', filePath);
+                if (fs.existsSync(fullPath)) {
+                    try {
+                        fs.unlinkSync(fullPath);
+                    } catch (error) {
+                        console.error('خطأ في حذف الملف القديم:', error);
+                    }
+                }
+            }
+        });
+    }
+};
+
 module.exports = {
     uploadHotelImage,
     uploadSingle,
-    deleteOldFile
+    deleteOldFile,
+    deleteOldFiles
 };

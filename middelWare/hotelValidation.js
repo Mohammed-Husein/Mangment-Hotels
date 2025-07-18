@@ -124,6 +124,11 @@ const validateUpdateHotel = [
         .isBoolean()
         .withMessage('حالة الفندق يجب أن تكون true أو false'),
 
+    body('deleteImage')
+        .optional()
+        .isString()
+        .withMessage('مسار الصورة المراد حذفها يجب أن يكون نص'),
+
     handleValidationErrors
 ];
 
