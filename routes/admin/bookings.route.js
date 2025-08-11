@@ -7,7 +7,8 @@ const {
     getAllBookings,
     getBookingById,
     updateBooking,
-    deleteBooking
+    deleteBooking,
+    updateRoomStatusManually
 } = require('../../controllers/booking.Controller');
 
 // استيراد middleware
@@ -61,5 +62,12 @@ router.put('/:id', validateUpdateBooking, updateBooking);
  * @access  Admin, Receptionist
  */
 router.delete('/:id', validateDeleteBooking, deleteBooking);
+
+/**
+ * @route   POST /api/admin/bookings/update-room-status
+ * @desc    تحديث حالة الغرف يدوياً
+ * @access  Admin, Receptionist
+ */
+router.post('/update-room-status', updateRoomStatusManually);
 
 module.exports = router;

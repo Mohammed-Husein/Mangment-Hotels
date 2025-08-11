@@ -201,16 +201,8 @@ const bookRoom = catchAsync(async (req, res) => {
     const newBooking = new Booking(newBookingData);
     await newBooking.save();
 
-    // تحديث حالة الغرفة إلى محجوزة
-    await Room.findByIdAndUpdate(roomId, {
-        status: 'Reserved',
-        futureBooking: {
-            isBooked: true,
-            bookedFrom: checkIn,
-            bookedTo: checkOut,
-            bookingNote: `حجز رقم: ${newBooking.bookingNumber}`
-        }
-    });
+    // تحديث حالة الغرفة باستخدام method المخصص
+    await newBooking.updateRoomStatus();
 
     // جلب البيانات مع populate
     const populatedBooking = await Booking.findById(newBooking._id)
@@ -268,14 +260,8 @@ const cancelBooking = catchAsync(async (req, res) => {
      .populate('hotel', 'name')
      .populate('payment.paymentMethod', 'name code');
 
-    // تحديث حالة الغرفة إلى متاحة
-    await Room.findByIdAndUpdate(booking.room, {
-        status: 'متاحة',
-        'futureBooking.isBooked': false,
-        'futureBooking.bookedFrom': null,
-        'futureBooking.bookedTo': null,
-        'futureBooking.bookingNote': ''
-    });
+    // تحديث حالة الغرفة باستخدام method المخصص
+    await updatedBooking.updateRoomStatus();
 
     res.status(200).json({
         status: httpStatusText.SUCCESS,
@@ -493,6 +479,11 @@ const updateBooking = catchAsync(async (req, res) => {
      .populate('hotel', 'name')
      .populate('payment.paymentMethod', 'name code');
 
+    // تحديث حالة الغرفة إذا تم تغيير التواريخ
+    if (checkInDate || checkOutDate) {
+        await updatedBooking.updateRoomStatus();
+    }
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم تحديث الحجز بنجاح',
@@ -542,14 +533,8 @@ const deleteBooking = catchAsync(async (req, res) => {
     ).populate('room', 'numberRoom name price type images')
      .populate('hotel', 'name');
 
-    // تحديث حالة الغرفة إلى متاحة
-    await Room.findByIdAndUpdate(booking.room, {
-        status: 'Available',
-        'futureBooking.isBooked': false,
-        'futureBooking.bookedFrom': null,
-        'futureBooking.bookedTo': null,
-        'futureBooking.bookingNote': ''
-    });
+    // تحديث حالة الغرفة باستخدام method المخصص
+    await updatedBooking.updateRoomStatus();
 
     res.status(200).json({
         status: httpStatusText.SUCCESS,

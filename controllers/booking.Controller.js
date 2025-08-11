@@ -156,16 +156,8 @@ const addBooking = catchAsync(async (req, res) => {
     await newBooking.save();
 console.log('Booking Number:', newBooking.bookingNumber);
 
-    // تحديث حالة الغرفة إلى محجوزة
-    await Room.findByIdAndUpdate(roomId, {
-        status: 'booked',
-        futureBooking: {
-            isBooked: true,
-            bookedFrom: checkIn,
-            bookedTo: checkOut,
-            bookingNote: `حجز رقم: ${newBooking.bookingNumber}`
-        }
-    });
+    // تحديث حالة الغرفة باستخدام method المخصص
+    await newBooking.updateRoomStatus();
 
     // جلب البيانات مع populate
     const populatedBooking = await Booking.findById(newBooking._id)
@@ -407,6 +399,11 @@ const updateBooking = catchAsync(async (req, res) => {
      .populate('hotel', 'name')
      .populate('payment.paymentMethod', 'name code');
 
+    // تحديث حالة الغرفة إذا تم تغيير حالة الحجز أو التواريخ
+    if ((status && status !== booking.status) || checkInDate || checkOutDate) {
+        await updatedBooking.updateRoomStatus();
+    }
+
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم تحديث الحجز بنجاح',
@@ -460,14 +457,8 @@ const deleteBooking = catchAsync(async (req, res) => {
      .populate('room', 'numberRoom name')
      .populate('hotel', 'name');
 
-    // تحديث حالة الغرفة إلى متاحة
-    await Room.findByIdAndUpdate(booking.room, {
-        status: 'available',
-        'futureBooking.isBooked': false,
-        'futureBooking.bookedFrom': null,
-        'futureBooking.bookedTo': null,
-        'futureBooking.bookingNote': ''
-    });
+    // تحديث حالة الغرفة باستخدام method المخصص
+    await updatedBooking.updateRoomStatus();
 
     res.status(200).json({
         status: httpStatusText.SUCCESS,
@@ -480,11 +471,28 @@ const deleteBooking = catchAsync(async (req, res) => {
     });
 });
 
+/**
+ * @desc    تحديث حالة الغرف يدوياً
+ * @route   POST /api/admin/bookings/update-room-status
+ * @access  Admin and above
+ */
+const updateRoomStatusManually = catchAsync(async (req, res) => {
+    const { updateRoomStatus } = require('../utils/scheduledTasks');
+    
+    await updateRoomStatus();
+    
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم تحديث حالة الغرف بنجاح'
+    });
+});
+
 module.exports = {
     addBooking,
     getAllBookings,
     getBookingById,
     updateBooking,
     deleteBooking,
-    checkRoomAvailability
+    checkRoomAvailability,
+    updateRoomStatusManually
 };

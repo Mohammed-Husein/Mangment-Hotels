@@ -10,14 +10,26 @@ const apiRoutes = require('./routes/index');
 // استيراد معالج الأخطاء
 const { globalErrorHandler } = require('./utils/errorHandler');
 
+// استيراد الوظائف المجدولة
+const { startScheduledTasks, initializeRoomStatus } = require('./utils/scheduledTasks');
+
 const app = express();
 
 // إعداد اتصال MongoDB
 const mongoUrl = process.env.MONGO_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/hotel-reservations';
 
 mongoose.connect(mongoUrl)
-.then(() => {
+.then(async () => {
     console.log("✅ تم الاتصال بقاعدة البيانات بنجاح");
+    
+    // تهيئة حالة الغرف عند بدء التشغيل (بعد 3 ثوانٍ)
+    setTimeout(async () => {
+        try {
+            await initializeRoomStatus();
+        } catch (error) {
+            console.error("❌ خطأ في تهيئة حالة الغرف:", error);
+        }
+    }, 3000);
 })
 .catch((err) => {
     console.error("❌ خطأ في الاتصال بقاعدة البيانات:", err);
@@ -71,4 +83,7 @@ app.listen(PORT, () => {
     console.log(`📚 API Documentation: http://localhost:${PORT}/api`);
     console.log(mongoose.connection.readyState); 
 // 0 = disconnected, 1 = connected, 2 = connecting, 3 = disconnecting
+
+    // بدء تشغيل الوظائف المجدولة
+    startScheduledTasks();
 });

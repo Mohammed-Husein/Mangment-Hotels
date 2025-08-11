@@ -119,6 +119,71 @@ bookingSchema.pre('save', function(next) {
     next();
 });
 
+// Middleware لتحديث حالة الغرفة عند تغيير حالة الحجز
+bookingSchema.post('save', async function(doc) {
+    try {
+        const Room = mongoose.model('Room');
+        
+        // إذا كان الحجز جديد أو تم تغيير حالته
+        if (this.isNew || this.isModified('status')) {
+            const room = await Room.findById(this.room);
+            if (!room) return;
+            
+            let roomStatus = 'Available';
+            let futureBooking = {
+                isBooked: false,
+                bookedFrom: null,
+                bookedTo: null,
+                bookingNote: ''
+            };
+            
+            // تحديد حالة الغرفة بناءً على حالة الحجز
+            switch (this.status) {
+                case 'pending':
+                case 'confirmed':
+                case 'checked_in':
+                    roomStatus = 'Reserved';
+                    futureBooking = {
+                        isBooked: true,
+                        bookedFrom: this.checkInDate,
+                        bookedTo: this.checkOutDate,
+                        bookingNote: `حجز رقم: ${this.bookingNumber}`
+                    };
+                    break;
+                case 'checked_out':
+                case 'cancelled':
+                case 'no_show':
+                    // التحقق من وجود حجوزات أخرى نشطة للغرفة
+                    const activeBookings = await this.constructor.find({
+                        room: this.room,
+                        status: { $in: ['pending', 'confirmed', 'checked_in'] },
+                        _id: { $ne: this._id }
+                    }).sort({ checkInDate: 1 });
+                    
+                    if (activeBookings.length > 0) {
+                        const nextBooking = activeBookings[0];
+                        roomStatus = 'Reserved';
+                        futureBooking = {
+                            isBooked: true,
+                            bookedFrom: nextBooking.checkInDate,
+                            bookedTo: nextBooking.checkOutDate,
+                            bookingNote: `حجز رقم: ${nextBooking.bookingNumber}`
+                        };
+                    }
+                    break;
+            }
+            
+            // تحديث الغرفة
+            await Room.findByIdAndUpdate(this.room, {
+                status: roomStatus,
+                futureBooking: futureBooking
+            });
+        }
+    } catch (error) {
+        console.error('خطأ في تحديث حالة الغرفة:', error);
+    }
+});
+
 // Middleware لتوليد رقم حجز فريد (النسخة المحسنة)
 bookingSchema.pre('save', async function(next) {
     if (!this.isNew || this.bookingNumber) return next();
@@ -168,6 +233,70 @@ bookingSchema.methods.canBeCancelled = function() {
     const hoursUntilCheckIn = (checkIn - now) / (1000 * 60 * 60);
     
     return ['pending', 'confirmed'].includes(this.status) && hoursUntilCheckIn > 24;
+};
+
+// Method لتحديث حالة الغرفة
+bookingSchema.methods.updateRoomStatus = async function() {
+    try {
+        const Room = mongoose.model('Room');
+        const room = await Room.findById(this.room);
+        if (!room) return;
+        
+        let roomStatus = 'Available';
+        let futureBooking = {
+            isBooked: false,
+            bookedFrom: null,
+            bookedTo: null,
+            bookingNote: ''
+        };
+        
+        // تحديد حالة الغرفة بناءً على حالة الحجز
+        switch (this.status) {
+            case 'pending':
+            case 'confirmed':
+            case 'checked_in':
+                roomStatus = 'Reserved';
+                futureBooking = {
+                    isBooked: true,
+                    bookedFrom: this.checkInDate,
+                    bookedTo: this.checkOutDate,
+                    bookingNote: `حجز رقم: ${this.bookingNumber}`
+                };
+                break;
+            case 'checked_out':
+            case 'cancelled':
+            case 'no_show':
+                // التحقق من وجود حجوزات أخرى نشطة للغرفة
+                const activeBookings = await this.constructor.find({
+                    room: this.room,
+                    status: { $in: ['pending', 'confirmed', 'checked_in'] },
+                    _id: { $ne: this._id }
+                }).sort({ checkInDate: 1 });
+                
+                if (activeBookings.length > 0) {
+                    const nextBooking = activeBookings[0];
+                    roomStatus = 'Reserved';
+                    futureBooking = {
+                        isBooked: true,
+                        bookedFrom: nextBooking.checkInDate,
+                        bookedTo: nextBooking.checkOutDate,
+                        bookingNote: `حجز رقم: ${nextBooking.bookingNumber}`
+                    };
+                }
+                break;
+        }
+        
+        // تحديث الغرفة
+        await Room.findByIdAndUpdate(this.room, {
+            status: roomStatus,
+            futureBooking: futureBooking
+        });
+        
+        console.log(`✅ تم تحديث حالة الغرفة ${room.numberRoom} إلى ${roomStatus}`);
+        
+    } catch (error) {
+        console.error('خطأ في تحديث حالة الغرفة:', error);
+    }
 };
 
 bookingSchema.methods.calculateRefundAmount = function() {
