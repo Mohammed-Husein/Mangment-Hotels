@@ -8,7 +8,8 @@ const {
     getAllBookingsByUserId,
     getBookingById,
     updateBooking,
-    deleteBooking
+    deleteBooking,
+    confirmPayment
 } = require('../../controllers/mobileBooking.Controller');
 
 // استيراد middleware
@@ -21,7 +22,8 @@ const {
     validateUpdateBooking,
     validateDeleteBooking,
     validateBookingId,
-    validateGetBookings
+    validateGetBookings,
+    validateConfirmPayment
 } = require('../../middelWare/bookingValidation');
 
 // تطبيق middleware للتحقق من التوثيق والصلاحيات على جميع المسارات
@@ -55,6 +57,13 @@ router.get('/my-bookings', validateGetBookings, getAllBookingsByUserId);
  * @access  Customer
  */
 router.put('/:id/cancel', validateDeleteBooking, cancelBooking);
+
+/**
+ * @route   POST /api/mobile/bookings/:id/confirm-payment
+ * @desc    تأكيد الدفع وتحديث حالة الحجز
+ * @access  Customer
+ */
+router.post('/:id/confirm-payment', validateBookingId, validateConfirmPayment, confirmPayment);
 
 /**
  * @route   PUT /api/mobile/bookings/:id

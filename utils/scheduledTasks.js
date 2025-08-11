@@ -67,28 +67,56 @@ const updateRoomStatus = async () => {
 const updateBookingStatus = async () => {
     try {
         console.log('🔄 بدء تحديث حالة الحجوزات...');
-        
+
         const now = new Date();
-        
+
         // تحديث الحجوزات التي انتهت إلى checked_out
         const expiredBookings = await Booking.find({
             status: { $in: ['confirmed', 'checked_in'] },
             checkOutDate: { $lt: now }
         });
-        
+
         console.log(`📊 تم العثور على ${expiredBookings.length} حجز منتهي`);
-        
+
         for (const booking of expiredBookings) {
-            await Booking.findByIdAndUpdate(booking._id, {
+            // تحديث حالة الحجز
+            const updatedBooking = await Booking.findByIdAndUpdate(booking._id, {
                 status: 'checked_out',
                 'timestamps.lastModifiedAt': now
-            });
-            
-            console.log(`✅ تم تحديث الحجز ${booking.bookingNumber} إلى checked_out`);
+            }, { new: true });
+
+            // تحديث حالة الغرفة باستخدام method المخصص
+            if (updatedBooking) {
+                await updatedBooking.updateRoomStatus();
+                console.log(`✅ تم تحديث الحجز ${booking.bookingNumber} إلى checked_out وتحديث حالة الغرفة`);
+            }
         }
-        
+
+        // تحديث الحجوزات المعلقة التي تجاوزت وقت تسجيل الوصول بدون تأكيد
+        const overdueBookings = await Booking.find({
+            status: 'pending',
+            checkInDate: { $lt: now },
+            'payment.status': { $ne: 'paid' }
+        });
+
+        console.log(`📊 تم العثور على ${overdueBookings.length} حجز معلق متأخر`);
+
+        for (const booking of overdueBookings) {
+            // تحديث حالة الحجز إلى no_show
+            const updatedBooking = await Booking.findByIdAndUpdate(booking._id, {
+                status: 'no_show',
+                'timestamps.lastModifiedAt': now
+            }, { new: true });
+
+            // تحديث حالة الغرفة باستخدام method المخصص
+            if (updatedBooking) {
+                await updatedBooking.updateRoomStatus();
+                console.log(`⚠️ تم تحديث الحجز ${booking.bookingNumber} إلى no_show وتحديث حالة الغرفة`);
+            }
+        }
+
         console.log('✅ تم الانتهاء من تحديث حالة الحجوزات');
-        
+
     } catch (error) {
         console.error('❌ خطأ في تحديث حالة الحجوزات:', error);
     }

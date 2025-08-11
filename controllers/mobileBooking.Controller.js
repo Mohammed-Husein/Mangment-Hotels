@@ -245,13 +245,13 @@ const cancelBooking = catchAsync(async (req, res) => {
         id,
         {
             $set: {
-                status: 'ملغي',
+                status: 'cancelled',
                 'cancellation.isCancelled': true,
                 'cancellation.cancelledAt': new Date(),
                 'cancellation.cancelledBy': customerId,
                 'cancellation.reason': reason || 'تم الإلغاء من قبل العميل',
                 'cancellation.refundAmount': refundAmount,
-                'cancellation.refundStatus': refundAmount > 0 ? 'معلق' : 'غير مطلوب',
+                'cancellation.refundStatus': refundAmount > 0 ? 'pending' : 'not_required',
                 'timestamps.lastModifiedAt': new Date()
             }
         },
@@ -547,11 +547,95 @@ const deleteBooking = catchAsync(async (req, res) => {
     });
 });
 
+/**
+ * @desc    تأكيد الدفع وتحديث حالة الحجز (للموبايل)
+ * @route   POST /api/mobile/bookings/:id/confirm-payment
+ * @access  Customer
+ */
+const confirmPayment = catchAsync(async (req, res) => {
+    const { id } = req.params;
+    const { paidAmount, paymentNotes } = req.body;
+    const customerId = req.decoded.id;
+
+    const booking = await Booking.findById(id);
+    if (!booking) {
+        throw new AppError('الحجز غير موجود', 404);
+    }
+
+    // التحقق من ملكية الحجز
+    if (booking.customer.toString() !== customerId) {
+        throw new AppError('غير مسموح لك بالوصول لهذا الحجز', 403);
+    }
+
+    // التحقق من إمكانية تأكيد الدفع
+    if (booking.status === 'cancelled') {
+        throw new AppError('لا يمكن تأكيد دفع حجز ملغي', 400);
+    }
+
+    if (booking.status === 'checked_out') {
+        throw new AppError('الحجز مكتمل بالفعل', 400);
+    }
+
+    // تحديد المبلغ المدفوع
+    const finalPaidAmount = paidAmount || booking.pricing.totalAmount;
+
+    // التحقق من صحة المبلغ
+    if (finalPaidAmount <= 0) {
+        throw new AppError('المبلغ المدفوع يجب أن يكون أكبر من صفر', 400);
+    }
+
+    if (finalPaidAmount > booking.pricing.totalAmount) {
+        throw new AppError('المبلغ المدفوع لا يمكن أن يكون أكبر من إجمالي المبلغ المطلوب', 400);
+    }
+
+    // تحديث بيانات الدفع والحالة
+    const updateData = {
+        'payment.paidAmount': finalPaidAmount,
+        'payment.remainingAmount': booking.pricing.totalAmount - finalPaidAmount,
+        'payment.status': finalPaidAmount >= booking.pricing.totalAmount ? 'paid' : 'partially_paid',
+        'timestamps.lastModifiedAt': new Date()
+    };
+
+    // إضافة ملاحظات الدفع إذا تم توفيرها
+    if (paymentNotes) {
+        updateData['payment.notes'] = paymentNotes;
+    }
+
+    // تحديث حالة الحجز إلى confirmed إذا تم الدفع بالكامل أو جزئياً
+    if (booking.status === 'pending') {
+        updateData.status = 'confirmed';
+    }
+
+    const updatedBooking = await Booking.findByIdAndUpdate(
+        id,
+        { $set: updateData },
+        { new: true, runValidators: true }
+    ).populate('room', 'numberRoom name price type images')
+     .populate('hotel', 'name')
+     .populate('payment.paymentMethod', 'name code');
+
+    // تحديث حالة الغرفة إذا تم تغيير حالة الحجز
+    if (booking.status === 'pending' && updatedBooking.status === 'confirmed') {
+        await updatedBooking.updateRoomStatus();
+    }
+
+    res.status(200).json({
+        status: httpStatusText.SUCCESS,
+        message: 'تم تأكيد الدفع بنجاح',
+        data: {
+            booking: updatedBooking,
+            paymentStatus: updatedBooking.payment.status,
+            remainingAmount: updatedBooking.payment.remainingAmount
+        }
+    });
+});
+
 module.exports = {
     bookRoom,
     cancelBooking,
     getAllBookingsByUserId,
     getBookingById,
     updateBooking,
-    deleteBooking
+    deleteBooking,
+    confirmPayment
 };

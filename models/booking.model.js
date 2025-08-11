@@ -60,9 +60,10 @@ const bookingSchema = new mongoose.Schema({
     },
     payment: {
         paymentMethod: { type: mongoose.Schema.Types.ObjectId, ref: 'PaymentMethod' },
-        status: { type: String },
+        status: { type: String, default: 'pending' },
         paidAmount: { type: Number, default: 0 },
-        remainingAmount: { type: Number }
+        remainingAmount: { type: Number },
+        notes: { type: String, trim: true }
     },
     status: {
         type: String,

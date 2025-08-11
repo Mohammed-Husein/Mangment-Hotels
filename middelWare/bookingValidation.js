@@ -248,10 +248,26 @@ const validateGetBookings = [
     handleValidationErrors
 ];
 
+// التحقق من صحة بيانات تأكيد الدفع
+const validateConfirmPayment = [
+    body('paidAmount')
+        .optional()
+        .isFloat({ min: 0.01 })
+        .withMessage('المبلغ المدفوع يجب أن يكون رقم موجب'),
+
+    body('paymentNotes')
+        .optional()
+        .isLength({ max: 500 })
+        .withMessage('ملاحظات الدفع يجب أن لا تتجاوز 500 حرف'),
+
+    handleValidationErrors
+];
+
 module.exports = {
     validateAddBooking,
     validateUpdateBooking,
     validateDeleteBooking,
     validateBookingId,
-    validateGetBookings
+    validateGetBookings,
+    validateConfirmPayment
 };
