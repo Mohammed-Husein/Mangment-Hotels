@@ -235,7 +235,8 @@ const getAllBookings = catchAsync(async (req, res) => {
         page: parseInt(page),
         limit: parseInt(limit),
         populate: [
-            { path: 'customer', select: 'fullName email phoneNumber' },
+            { path: 'customer', select: 'firstName lastName email phoneNumber' },
+
             { path: 'room', select: 'numberRoom name price' },
             { path: 'hotel', select: 'name' },
             { path: 'payment.paymentMethod', select: 'name code' }
@@ -249,7 +250,8 @@ const getAllBookings = catchAsync(async (req, res) => {
     const formattedBookings = result.data.map(booking => ({
         id: booking._id,
         bookingNumber: booking.bookingNumber,
-        customerName: booking.customer?.fullName || 'غير محدد',
+        customerName: booking.customer?.firstName + ' ' + booking.customer?.lastName || 'غير محدد',
+
         roomNumber: booking.room ? booking.room.numberRoom : 'غير محدد',
         checkInDate: booking.checkInDate,
         checkOutDate: booking.checkOutDate,
