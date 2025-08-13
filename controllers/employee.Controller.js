@@ -615,7 +615,13 @@ const login = catchAsync(async (req, res) => {
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم تسجيل الدخول بنجاح',
-        loginResponse
+         id: employee._id,
+        name: employee.fullName,
+        imageUrl: employee.imageUrl,
+        permissions: employee.permissions,
+        deviceToken: deviceToken || employee.deviceToken,
+        accessToken,
+        refreshToken
     });
 });
 
