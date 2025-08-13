@@ -159,7 +159,7 @@ const validateUpdateBooking = [
     
     body('status')
         .optional()
-        .isIn(['معلق', 'مؤكد', 'تم تسجيل الدخول', 'تم تسجيل الخروج', 'ملغي', 'لم يحضر'])
+        .isIn(['pending', 'confirmed', 'checked_in', 'checked_out', 'cancelled', 'no_show'])
         .withMessage('حالة الحجز غير صحيحة'),
     
     body('guestInfo.fullName')

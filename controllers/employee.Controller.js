@@ -615,7 +615,7 @@ const login = catchAsync(async (req, res) => {
     res.status(200).json({
         status: httpStatusText.SUCCESS,
         message: 'تم تسجيل الدخول بنجاح',
-        data: loginResponse
+        loginResponse
     });
 });
 
