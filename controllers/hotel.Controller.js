@@ -248,7 +248,9 @@ const addHotel = catchAsync(async (req, res) => {
     }
 
     // إضافة الصورة إذا تم رفعها
-    if (req.file) {
+    if (req.processedImage) {
+        newHotelData.images = [req.processedImage.url];
+    } else if (req.file) {
         newHotelData.images = [req.file.filename];
     }
 
@@ -422,20 +424,27 @@ const updateHotel = catchAsync(async (req, res) => {
     let currentImages = hotel.images || [];
 
     if (deleteImage) {
-        // حذف الصورة المحددة من النظام
+        // حذف الصورة المحددة من Cloudinary
         const { deleteOldFiles } = require('../middelWare/hotelUploadMiddleware');
-        deleteOldFiles([deleteImage]);
+        await deleteOldFiles([deleteImage]);
 
         // إزالة الصورة المحذوفة من قائمة الصور الحالية
         currentImages = currentImages.filter(image => image !== deleteImage);
     }
 
     // تحديث الصورة إذا تم رفع صورة جديدة
-    if (req.file) {
+    if (req.processedImage) {
         // إذا كان هناك صور حالية وتم رفع صورة جديدة، نحذف القديمة ونضع الجديدة
         if (currentImages.length > 0 && !deleteImage) {
             const { deleteOldFiles } = require('../middelWare/hotelUploadMiddleware');
-            deleteOldFiles(currentImages);
+            await deleteOldFiles(currentImages);
+        }
+        updateData.images = [req.processedImage.url];
+    } else if (req.file) {
+        // للتوافق مع النظام القديم
+        if (currentImages.length > 0 && !deleteImage) {
+            const { deleteOldFiles } = require('../middelWare/hotelUploadMiddleware');
+            await deleteOldFiles(currentImages);
         }
         updateData.images = [req.file.filename];
     } else if (deleteImage && currentImages.length === 0) {

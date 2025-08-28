@@ -1,131 +1,77 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { AppError } = require('../utils/errorHandler');
+// استخدام Cloudinary للتخزين السحابي للفنادق
+console.log('☁️ استخدام Cloudinary للتخزين السحابي للفنادق');
 
-// إنشاء مجلد uploads/hotels إذا لم يكن موجوداً
-const uploadsDir = path.join(__dirname, '../uploads');
-const hotelsDir = path.join(uploadsDir, 'hotels');
+const {
+    uploadSingleImage,
+    uploadHotelImages,
+    handleCloudinaryUploadErrors,
+    processCloudinaryImagesMiddleware,
+    deleteImageFromCloudinary,
+    deleteMultipleImagesFromCloudinary
+} = require('./cloudinaryUpload');
 
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// middleware لرفع صورة واحدة للفندق
+const uploadSingle = (fieldName) => uploadSingleImage(fieldName);
 
-if (!fs.existsSync(hotelsDir)) {
-    fs.mkdirSync(hotelsDir, { recursive: true });
-}
-
-// إعداد التخزين
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, hotelsDir);
-    },
-    filename: function (req, file, cb) {
-        // إنشاء اسم ملف فريد
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const extension = path.extname(file.originalname);
-        const filename = `hotel-${uniqueSuffix}${extension}`;
-        
-        // حفظ اسم الملف في req.file للاستخدام لاحقاً
-        req.uploadedFilename = `uploads/hotels/${filename}`;
-        
-        cb(null, filename);
-    }
-});
-
-// فلترة أنواع الملفات المسموحة
-const fileFilter = (req, file, cb) => {
-    // أنواع الملفات المسموحة
-    const allowedTypes = /jpeg|jpg|png|gif|webp/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-        return cb(null, true);
-    } else {
-        cb(new AppError('نوع الملف غير مدعوم. يُسمح فقط بملفات الصور (JPEG, JPG, PNG, GIF, WEBP)', 400));
-    }
-};
-
-// إعداد multer
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 10 * 1024 * 1024, // 10MB حد أقصى للفنادق
-        files: 1 // ملف واحد فقط
-    },
-    fileFilter: fileFilter
-});
-
-// middleware لرفع صورة واحدة
-const uploadSingle = (fieldName) => {
-    return (req, res, next) => {
-        const uploadSingleFile = upload.single(fieldName);
-        
-        uploadSingleFile(req, res, (err) => {
-            if (err instanceof multer.MulterError) {
-                if (err.code === 'LIMIT_FILE_SIZE') {
-                    return next(new AppError('حجم الملف كبير جداً. الحد الأقصى 10MB', 400));
-                }
-                if (err.code === 'LIMIT_FILE_COUNT') {
-                    return next(new AppError('يمكن رفع ملف واحد فقط', 400));
-                }
-                if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-                    return next(new AppError('حقل الملف غير متوقع', 400));
-                }
-                return next(new AppError(`خطأ في رفع الملف: ${err.message}`, 400));
-            } else if (err) {
-                return next(err);
-            }
-            
-            // إذا تم رفع ملف، تحديث مسار الملف
-            if (req.file) {
-                req.file.filename = req.uploadedFilename;
-            }
-            
-            next();
-        });
-    };
-};
+// middleware لرفع صور متعددة للفندق
+const uploadMultiple = (fieldName, maxCount = 10) => uploadHotelImages;
 
 // middleware لرفع صورة الفندق
 const uploadHotelImage = uploadSingle('imagefile');
 
-// دالة لحذف الملف القديم
-const deleteOldFile = (filePath) => {
-    if (filePath && !filePath.includes('default')) {
-        const fullPath = path.join(__dirname, '../', filePath);
-        if (fs.existsSync(fullPath)) {
-            try {
-                fs.unlinkSync(fullPath);
-            } catch (error) {
-                console.error('خطأ في حذف الملف القديم:', error);
-            }
-        }
+// middleware لمعالجة الصور المرفوعة للفنادق
+const processHotelImages = processCloudinaryImagesMiddleware('hotel-images');
+
+// دالة موحدة لحذف الصور من Cloudinary
+const deleteOldFiles = async (imageUrls) => {
+    if (!Array.isArray(imageUrls) && imageUrls) {
+        imageUrls = [imageUrls];
     }
+
+    if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return [];
+    }
+
+    // استخراج public IDs من URLs
+    const publicIds = imageUrls
+        .filter(url => url && url.includes('cloudinary.com'))
+        .map(url => {
+            // استخراج public ID من Cloudinary URL
+            const matches = url.match(/\/v\d+\/(.+)\./);
+            return matches ? matches[1] : null;
+        })
+        .filter(id => id);
+
+    if (publicIds.length > 0) {
+        return await deleteMultipleImagesFromCloudinary(publicIds);
+    }
+
+    return [];
 };
 
-// دالة لحذف الملفات القديمة (مصفوفة)
-const deleteOldFiles = (filePaths) => {
-    if (Array.isArray(filePaths)) {
-        filePaths.forEach(filePath => {
-            if (filePath && !filePath.includes('default')) {
-                const fullPath = path.join(__dirname, '../', filePath);
-                if (fs.existsSync(fullPath)) {
-                    try {
-                        fs.unlinkSync(fullPath);
-                    } catch (error) {
-                        console.error('خطأ في حذف الملف القديم:', error);
-                    }
-                }
-            }
-        });
-    }
+// معلومات عن نوع التخزين المستخدم
+const getStorageInfo = () => {
+    return {
+        type: 'cloudinary',
+        description: 'التخزين السحابي باستخدام Cloudinary للفنادق',
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        folder: 'hotel-images',
+        features: [
+            'تخزين سحابي دائم',
+            'تحسين تلقائي للصور',
+            'CDN عالمي سريع',
+            'نسخ احتياطي آمن'
+        ]
+    };
 };
 
 module.exports = {
     uploadHotelImage,
     uploadSingle,
-    deleteOldFile,
-    deleteOldFiles
+    uploadMultiple,
+    handleUploadErrors: handleCloudinaryUploadErrors,
+    processHotelImages,
+    deleteOldFiles,
+    getStorageInfo,
+    useCloudinary: true // نستخدم Cloudinary للتخزين السحابي
 };

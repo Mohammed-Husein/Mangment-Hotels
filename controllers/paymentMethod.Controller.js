@@ -45,7 +45,10 @@ const addPaymentMethod = catchAsync(async (req, res) => {
     }
     
     // إضافة الأيقونة إذا تم رفعها
-    if (req.file) {
+    if (req.processedImage) {
+        newPaymentMethodData.icon = req.processedImage.url;
+    } else if (req.file) {
+        // للتوافق مع النظام القديم
         newPaymentMethodData.icon = `uploads/payment-methods/${req.file.filename}`;
     }
     
@@ -227,7 +230,15 @@ const updatePaymentMethod = catchAsync(async (req, res) => {
     }
     
     // تحديث الأيقونة إذا تم رفع أيقونة جديدة
-    if (req.file) {
+    if (req.processedImage) {
+        // حذف الأيقونة القديمة من Cloudinary إذا كانت موجودة
+        if (paymentMethod.icon && paymentMethod.icon.includes('cloudinary.com')) {
+            const { deleteOldFiles } = require('../middelWare/paymentMethodUploadMiddleware');
+            await deleteOldFiles([paymentMethod.icon]);
+        }
+        updateData.icon = req.processedImage.url;
+    } else if (req.file) {
+        // للتوافق مع النظام القديم
         updateData.icon = `uploads/payment-methods/${req.file.filename}`;
     }
     

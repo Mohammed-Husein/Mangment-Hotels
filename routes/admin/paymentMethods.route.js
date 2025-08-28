@@ -16,7 +16,7 @@ const verifyToken = require('../../middelWare/verifyToken');
 const allowedTo = require('../../middelWare/allowedTo');
 
 // استيراد upload middleware
-const { uploadPaymentMethodIcon } = require('../../middelWare/paymentMethodUploadMiddleware');
+const { uploadPaymentIcon, processPaymentMethodImages, handleUploadErrors } = require('../../middelWare/paymentMethodUploadMiddleware');
 
 // استيراد validation middleware
 const {
@@ -63,7 +63,7 @@ router.get('/:id', managerAndAbove, validatePaymentMethodId, getPaymentMethodByI
  * @access  Admin and above
  * @body    nameAr, nameEn, code, descriptionAr?, descriptionEn?, displayOrder?, isActive?, icon? (file), metadata?
  */
-router.post('/', adminAndAbove, uploadPaymentMethodIcon, validateAddPaymentMethod, addPaymentMethod);
+router.post('/', adminAndAbove, uploadPaymentIcon, handleUploadErrors, processPaymentMethodImages, validateAddPaymentMethod, addPaymentMethod);
 
 /**
  * @route   PUT /api/admin/payment-methods/:id
@@ -71,6 +71,6 @@ router.post('/', adminAndAbove, uploadPaymentMethodIcon, validateAddPaymentMetho
  * @access  Admin and above
  * @body    nameAr?, nameEn?, code?, descriptionAr?, descriptionEn?, displayOrder?, isActive?, icon? (file), metadata?
  */
-router.put('/:id', adminAndAbove, validatePaymentMethodId, uploadPaymentMethodIcon, validateUpdatePaymentMethod, updatePaymentMethod);
+router.put('/:id', adminAndAbove, validatePaymentMethodId, uploadPaymentIcon, handleUploadErrors, processPaymentMethodImages, validateUpdatePaymentMethod, updatePaymentMethod);
 router.delete('/:id' , deletePayment)
 module.exports = router;

@@ -1,104 +1,75 @@
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { AppError } = require('../utils/errorHandler');
+// استخدام Cloudinary للتخزين السحابي لطرق الدفع
+console.log('☁️ استخدام Cloudinary للتخزين السحابي لطرق الدفع');
 
-// إنشاء مجلد uploads/payment-methods إذا لم يكن موجوداً
-const uploadsDir = path.join(__dirname, '../uploads');
-const paymentMethodsDir = path.join(uploadsDir, 'payment-methods');
+const {
+    uploadPaymentMethodIcon,
+    handleCloudinaryUploadErrors,
+    processCloudinaryImagesMiddleware,
+    deleteImageFromCloudinary,
+    deleteMultipleImagesFromCloudinary
+} = require('./cloudinaryUpload');
 
-if (!fs.existsSync(uploadsDir)) {
-    fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// middleware لرفع أيقونة طريقة الدفع
+const uploadSingle = (fieldName) => uploadPaymentMethodIcon;
 
-if (!fs.existsSync(paymentMethodsDir)) {
-    fs.mkdirSync(paymentMethodsDir, { recursive: true });
-}
+// middleware لرفع أيقونة طريقة الدفع
+const uploadPaymentIcon = uploadPaymentMethodIcon;
 
-// إعداد التخزين
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, paymentMethodsDir);
-    },
-    filename: function (req, file, cb) {
-        // إنشاء اسم ملف فريد
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        const extension = path.extname(file.originalname);
-        const filename = `payment-method-${uniqueSuffix}${extension}`;
-        
-        cb(null, filename);
+// middleware لرفع أيقونة طريقة الدفع
+const uploadPaymentIcon = uploadPaymentMethodIcon;
+
+// middleware لمعالجة الأيقونة المرفوعة لطرق الدفع
+const processPaymentMethodImages = processCloudinaryImagesMiddleware('payment-method-icons');
+
+// دالة موحدة لحذف الأيقونات من Cloudinary
+const deleteOldFiles = async (imageUrls) => {
+    if (!Array.isArray(imageUrls) && imageUrls) {
+        imageUrls = [imageUrls];
     }
-});
 
-// فلترة أنواع الملفات المسموحة
-const fileFilter = (req, file, cb) => {
-    // أنواع الملفات المسموحة للأيقونات
-    const allowedTypes = /jpeg|jpg|png|gif|webp|svg/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'image/svg+xml';
-
-    if (mimetype && extname) {
-        return cb(null, true);
-    } else {
-        cb(new AppError('نوع الملف غير مدعوم. يُسمح فقط بملفات الصور والأيقونات (JPEG, JPG, PNG, GIF, WEBP, SVG)', 400));
+    if (!Array.isArray(imageUrls) || imageUrls.length === 0) {
+        return [];
     }
+
+    // استخراج public IDs من URLs
+    const publicIds = imageUrls
+        .filter(url => url && url.includes('cloudinary.com'))
+        .map(url => {
+            // استخراج public ID من Cloudinary URL
+            const matches = url.match(/\/v\d+\/(.+)\./);
+            return matches ? matches[1] : null;
+        })
+        .filter(id => id);
+
+    if (publicIds.length > 0) {
+        return await deleteMultipleImagesFromCloudinary(publicIds);
+    }
+
+    return [];
 };
 
-// إعداد multer
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 2 * 1024 * 1024, // 2MB حد أقصى للأيقونات
-        files: 1 // ملف واحد فقط
-    },
-    fileFilter: fileFilter
-});
-
-// middleware لرفع أيقونة واحدة
-const uploadSingle = (fieldName) => {
-    return (req, res, next) => {
-        const uploadSingleFile = upload.single(fieldName);
-        
-        uploadSingleFile(req, res, (err) => {
-            if (err instanceof multer.MulterError) {
-                if (err.code === 'LIMIT_FILE_SIZE') {
-                    return next(new AppError('حجم الملف كبير جداً. الحد الأقصى 2MB', 400));
-                }
-                if (err.code === 'LIMIT_FILE_COUNT') {
-                    return next(new AppError('يمكن رفع ملف واحد فقط', 400));
-                }
-                if (err.code === 'LIMIT_UNEXPECTED_FILE') {
-                    return next(new AppError('حقل الملف غير متوقع', 400));
-                }
-                return next(new AppError(`خطأ في رفع الملف: ${err.message}`, 400));
-            } else if (err) {
-                return next(err);
-            }
-            
-            next();
-        });
+// معلومات عن نوع التخزين المستخدم
+const getStorageInfo = () => {
+    return {
+        type: 'cloudinary',
+        description: 'التخزين السحابي باستخدام Cloudinary لأيقونات طرق الدفع',
+        cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+        folder: 'payment-method-icons',
+        features: [
+            'تخزين سحابي دائم',
+            'تحسين تلقائي للأيقونات',
+            'CDN عالمي سريع',
+            'نسخ احتياطي آمن'
+        ]
     };
 };
 
-// middleware لرفع أيقونة طريقة الدفع
-const uploadPaymentMethodIcon = uploadSingle('icon');
-
-// دالة لحذف الملف القديم
-const deleteOldFile = (filePath) => {
-    if (filePath && !filePath.includes('default')) {
-        const fullPath = path.join(__dirname, '../', filePath);
-        if (fs.existsSync(fullPath)) {
-            try {
-                fs.unlinkSync(fullPath);
-            } catch (error) {
-                console.error('خطأ في حذف الملف القديم:', error);
-            }
-        }
-    }
-};
-
 module.exports = {
-    uploadPaymentMethodIcon,
+    uploadPaymentIcon,
     uploadSingle,
-    deleteOldFile
+    handleUploadErrors: handleCloudinaryUploadErrors,
+    processPaymentMethodImages,
+    deleteOldFiles,
+    getStorageInfo,
+    useCloudinary: true // نستخدم Cloudinary للتخزين السحابي
 };

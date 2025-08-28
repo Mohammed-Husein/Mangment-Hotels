@@ -26,39 +26,9 @@ const {
 } = require('../../middelWare/customerValidation');
 
 // استيراد upload middleware
-const { uploadAvatar } = require('../../middelWare/uploadMiddleware');
+const { uploadAvatar, processAvatarImages, handleUploadErrors } = require('../../middelWare/uploadMiddleware');
 
-// إعداد multer لرفع الصور
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads/');
-    },
-    filename: function (req, file, cb) {
-        const ext = path.extname(file.originalname);
-        const fileName = `user-${Date.now()}${ext}`;
-        cb(null, fileName);
-    }
-});
-
-const fileFilter = (req, file, cb) => {
-    const allowedTypes = /jpeg|jpg|png|gif/;
-    const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = allowedTypes.test(file.mimetype);
-
-    if (mimetype && extname) {
-        return cb(null, true);
-    } else {
-        cb(new Error('نوع الملف غير مدعوم. يرجى رفع صورة بصيغة JPEG, JPG, PNG, أو GIF'));
-    }
-};
-
-const upload = multer({
-    storage: storage,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB
-    },
-    fileFilter: fileFilter
-});
+const uploadUserImage = uploadAvatar;
 
 /**
  * @route   POST /api/mobile/auth/register
@@ -117,6 +87,8 @@ router.put('/change-password', verifyToken, validateUpdatePassword, updatePasswo
 router.put('/update-profile',
     verifyToken,
     uploadAvatar,
+    handleUploadErrors,
+    processAvatarImages,
     validateUpdateProfile,
     updateProfile
 );

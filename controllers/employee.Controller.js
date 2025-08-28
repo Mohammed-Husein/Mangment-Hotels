@@ -400,7 +400,7 @@ const createEmployee = catchAsync(async (req, res) => {
         countryId,
         hotelId,
         status: status || 'Active',
-        imageUrl: req.file?.filename || 'uploads/Avatar.png',
+        imageUrl: req.processedImage?.url || req.file?.filename || 'uploads/Avatar.png',
         permissions: permissions || [],
         notes,
         taskDescription,
@@ -496,7 +496,11 @@ const updateEmployee = catchAsync(async (req, res) => {
     if (notes !== undefined) updateData.notes = notes;
     if (taskDescription !== undefined) updateData.taskDescription = taskDescription;
     if (deviceToken) updateData.deviceToken = deviceToken;
-    if (req.file) updateData.imageUrl = req.file.filename;
+    if (req.processedImage) {
+        updateData.imageUrl = req.processedImage.url;
+    } else if (req.file) {
+        updateData.imageUrl = req.file.filename;
+    }
 
     // تحديث الحالة مع تسجيل السبب
     if (status && status !== employee.status) {
@@ -913,7 +917,9 @@ const modifyMyProfile = catchAsync(async (req, res) => {
     }
 
     // تحديث الصورة إذا تم رفعها
-    if (req.file) {
+    if (req.processedImage) {
+        updateData.imageUrl = req.processedImage.url;
+    } else if (req.file) {
         updateData.imageUrl = req.file.filename;
     }
 

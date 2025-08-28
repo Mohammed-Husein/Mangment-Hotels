@@ -16,7 +16,7 @@ const verifyToken = require('../../middelWare/verifyToken');
 const allowedTo = require('../../middelWare/allowedTo');
 
 // استيراد upload middleware
-const { uploadHotelImage } = require('../../middelWare/hotelUploadMiddleware');
+const { uploadHotelImage, processHotelImages, handleUploadErrors } = require('../../middelWare/hotelUploadMiddleware');
 
 // استيراد validation middleware
 const {
@@ -63,7 +63,7 @@ router.get('/:id', adminAndAbove, validateHotelId, getHotelById);
  * @access  Admin and above
  * @body    nameAr, nameEn?, countryId, governorateId, regionId, longitude?, latitude?, isActive?, imagefile (file)
  */
-router.post('/', adminAndAbove, uploadHotelImage, validateAddHotel, addHotel);
+router.post('/', adminAndAbove, uploadHotelImage, handleUploadErrors, processHotelImages, validateAddHotel, addHotel);
 
 /**
  * @route   POST /api/admin/hotels/update/:id
@@ -71,7 +71,7 @@ router.post('/', adminAndAbove, uploadHotelImage, validateAddHotel, addHotel);
  * @access  Admin and above
  * @body    namear?, nameEn?, countryId?, governorateId?, cityId?, regionId?, longitude?, latitude?, isActive?, imagefile? (file), deleteImage? (string)
  */
-router.post('/update/:id', adminAndAbove, validateHotelId, uploadHotelImage, validateUpdateHotel, updateHotel);
+router.post('/update/:id', adminAndAbove, validateHotelId, uploadHotelImage, handleUploadErrors, processHotelImages, validateUpdateHotel, updateHotel);
 
 /**
  * @route   DELETE /api/admin/hotels/:id

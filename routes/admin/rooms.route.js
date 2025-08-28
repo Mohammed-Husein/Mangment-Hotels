@@ -16,7 +16,7 @@ const verifyToken = require('../../middelWare/verifyToken');
 const allowedTo = require('../../middelWare/allowedTo');
 
 // استيراد upload middleware
-const { uploadRoomImages } = require('../../middelWare/roomUploadMiddleware');
+const { uploadRoomImages, processRoomImages, handleUploadErrors } = require('../../middelWare/roomUploadMiddleware');
 
 // استيراد validation middleware
 const {
@@ -63,7 +63,7 @@ router.get('/:id', managerAndAbove, validateRoomId, getRoomById);
  * @access  Admin and above
  * @body    nameAr, nameEn?, numberRoom, status?, type, bedsCount?, hotelId, bookedFrom?, bookedTo?, bookingNote?, services?, roomImages[] (files)
  */
-router.post('/', adminAndAbove, uploadRoomImages, validateAddRoom, addRoom);
+router.post('/', adminAndAbove, uploadRoomImages, handleUploadErrors, processRoomImages, validateAddRoom, addRoom);
 
 /**
  * @route   POST /api/admin/rooms/:id
@@ -71,7 +71,7 @@ router.post('/', adminAndAbove, uploadRoomImages, validateAddRoom, addRoom);
  * @access  Admin and above
  * @body    nameAr?, nameEn?, type?, price?, description?, bedsCount?, services?, roomImages[]? (files), deleteImages[]? (array of image paths to delete)
  */
-router.post('/:id', adminAndAbove, validateRoomId, uploadRoomImages, validateUpdateRoom, updateRoom);
+router.post('/:id', adminAndAbove, validateRoomId, uploadRoomImages, handleUploadErrors, processRoomImages, validateUpdateRoom, updateRoom);
 
 /**
  * @route   DELETE /api/admin/rooms/:id

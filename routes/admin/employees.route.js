@@ -41,34 +41,10 @@ const {
     validateModifyMyProfile
 } = require('../../middelWare/employeeValidation');
 
-// إعداد multer لرفع الصور
-const diskStorage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        cb(null, 'uploads');
-    },
-    filename: function (req, file, cb) {
-        const ext = path.extname(file.originalname);
-        const fileName = `employee-${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
-        cb(null, fileName);
-    }
-});
+// استيراد upload middleware
+const { uploadAvatar, processAvatarImages, handleUploadErrors } = require('../../middelWare/uploadMiddleware');
 
-const fileFilter = (req, file, cb) => {
-    const imageType = file.mimetype.split('/')[0];
-    if (imageType === 'image') {
-        return cb(null, true);
-    } else {
-        return cb(new Error('يجب أن يكون الملف صورة'), false);
-    }
-};
-
-const upload = multer({ 
-    storage: diskStorage, 
-    fileFilter: fileFilter,
-    limits: {
-        fileSize: 5 * 1024 * 1024 // 5MB
-    }
-});
+const uploadEmployeeImage = uploadAvatar;
 
 // استيراد أدوار الموظفين
 const Employee = require('../../models/employee.model');
@@ -161,11 +137,13 @@ router.post('/',
  * @access  Admin and above
  * @body    fullName, email, phoneNumber, alternatePhoneNumber (optional), role, countryId, hotelId, status, permissions, notes, taskDescription (optional), deviceToken, statusChangeReason
  */
-router.put('/:id', 
-    adminAndAbove, 
-    upload.single('image'), 
+router.put('/:id',
+    adminAndAbove,
+    uploadEmployeeImage,
+    handleUploadErrors,
+    processAvatarImages,
     validateEmployeeId,
-    validateUpdateEmployee, 
+    validateUpdateEmployee,
     updateEmployee
 );
 

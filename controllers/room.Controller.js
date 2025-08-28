@@ -117,7 +117,12 @@ const addRoom = catchAsync(async (req, res) => {
     }
 
     // إضافة الصور إذا تم رفعها
-    if (req.files && req.files.length > 0) {
+    if (req.processedImages && req.processedImages.length > 0) {
+        newRoomData.images = req.processedImages.map(img => img.url);
+    } else if (req.processedImage) {
+        newRoomData.images = [req.processedImage.url];
+    } else if (req.files && req.files.length > 0) {
+        // للتوافق مع النظام القديم
         newRoomData.images = req.files.map(file => `uploads/rooms/${file.filename}`);
     } else if (req.file) {
         newRoomData.images = [`uploads/rooms/${req.file.filename}`];
@@ -542,9 +547,9 @@ const updateRoom = catchAsync(async (req, res) => {
         }
 
         if (imagesToDelete.length > 0) {
-            // حذف الصور المحددة من النظام
+            // حذف الصور المحددة من Cloudinary
             const { deleteOldFiles } = require('../middelWare/roomUploadMiddleware');
-            deleteOldFiles(imagesToDelete);
+            await deleteOldFiles(imagesToDelete);
 
             // إزالة الصور المحذوفة من قائمة الصور الحالية
             currentImages = currentImages.filter(image => !imagesToDelete.includes(image));
@@ -552,12 +557,19 @@ const updateRoom = catchAsync(async (req, res) => {
     }
 
     // تحديث الصور إذا تم رفع صور جديدة
-    if (req.files && req.files.length > 0) {
+    if (req.processedImages && req.processedImages.length > 0) {
         // إضافة الصور الجديدة إلى الصور الحالية (بعد حذف المحددة)
+        const newImages = req.processedImages.map(img => img.url);
+        updateData.images = [...currentImages, ...newImages];
+    } else if (req.processedImage) {
+        // إضافة الصورة الجديدة إلى الصور الحالية (بعد حذف المحددة)
+        updateData.images = [...currentImages, req.processedImage.url];
+    } else if (req.files && req.files.length > 0) {
+        // للتوافق مع النظام القديم
         const newImages = req.files.map(file => `uploads/rooms/${file.filename}`);
         updateData.images = [...currentImages, ...newImages];
     } else if (req.file) {
-        // إضافة الصورة الجديدة إلى الصور الحالية (بعد حذف المحددة)
+        // للتوافق مع النظام القديم
         const newImage = `uploads/rooms/${req.file.filename}`;
         updateData.images = [...currentImages, newImage];
     } else if (deleteImages) {

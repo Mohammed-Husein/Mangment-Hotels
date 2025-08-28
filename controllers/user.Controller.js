@@ -450,7 +450,15 @@ const updateUser = catchAsync(async (req, res) => {
     delete updateData.emailVerificationToken;
 
     // تحديث الصورة إذا تم رفعها
-    if (req.file) {
+    if (req.processedImage) {
+        // حذف الصورة القديمة من Cloudinary إذا كانت موجودة
+        if (existingUser.avatar && existingUser.avatar.includes('cloudinary.com')) {
+            const { deleteOldFile } = require('../middelWare/uploadMiddleware');
+            await deleteOldFile(existingUser.avatar);
+        }
+        updateData.avatar = req.processedImage.url;
+    } else if (req.file) {
+        // للتوافق مع النظام القديم
         updateData.avatar = req.file.filename;
     }
 
@@ -703,7 +711,15 @@ const updateProfile = catchAsync(async (req, res) => {
     }
 
     // تحديث الصورة إذا تم رفعها
-    if (req.file) {
+    if (req.processedImage) {
+        // حذف الصورة القديمة من Cloudinary إذا كانت موجودة
+        if (existingUser.avatar && existingUser.avatar.includes('cloudinary.com')) {
+            const { deleteOldFile } = require('../middelWare/uploadMiddleware');
+            await deleteOldFile(existingUser.avatar);
+        }
+        updateData.avatar = req.processedImage.url;
+    } else if (req.file) {
+        // للتوافق مع النظام القديم
         updateData.avatar = req.file.filename;
     }
 
